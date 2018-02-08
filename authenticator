@@ -1,0 +1,212 @@
+#!/usr/bin/env python
+import subprocess
+from time import sleep;
+import threading
+import subprocess
+import socket
+import sys
+import os
+import grp
+import stat
+import redis
+from flask import Flask
+from flask import request
+from flask import jsonify
+import json
+from OpenSSL import crypto, SSL
+import argparse
+import random
+
+parser = argparse.ArgumentParser(description='Sentinel:Authenticator')
+parser.add_argument('--redis-port', nargs=1, type=int,
+        help='redis port', required=True)
+parser.add_argument('--redis-address', nargs=1,
+        help='redis ip address', required=True)
+args = parser.parse_args()
+
+app = Flask(__name__)
+
+
+DELAY_GET_SESSION_EXISTS = 10
+
+DELAY_AUTH = 10
+DELAY_AUTH_AGAIN = 10
+
+print("xxx")
+r = redis.StrictRedis(
+    host=args.redis_address[0],
+    port=args.redis_port[0],
+    db=0
+)
+
+@app.route("/", methods=['GET'])
+def hello_world():
+    return "Hello World"
+
+@app.route("/", methods=['POST'])
+def process_all():
+    # request.data is class bytes
+    req_json = request.get_json() # class dict
+
+
+    if not req_json.get('sn'):
+        print("sn not present")
+        return jsonify({"status" : "error"})
+
+    if req_json.get('sid')==None:
+        print("sid not present")
+        return jsonify({"status" : "error"})
+
+    if not req_json.get('type'):
+        print("type not present")
+        return jsonify({"status" : "error"})
+
+    if not req_json.get("api_version"):
+        print("api version not present")
+        return jsonify({"status" : "error"})
+
+    if req_json['type'] == 'get_cert':
+
+        if not req_json.get('csr'):
+            print("csr not present")
+            return jsonify({"status" : "error"})
+
+        return exec_state_get(
+            req_json["sn"],
+            req_json["sid"],
+            req_json["csr"]
+        )
+        #TODO kontrola formatu sid, sn, csr
+
+    elif req_json["type"] == "auth":
+        return exec_state_auth(
+            req_json["sn"],
+            req_json["sid"],
+            req_json["digest"],
+        )
+
+
+def get_nonce():
+    #TODO vylepsit
+    return random.randint(
+        1000000000000000000000000000000000000000000000000000000000000000,
+        9999999999999999999999999999999999999999999999999999999999999999
+    )
+
+
+def exec_state_get(sn, sid, csr_str):
+    def cert_not_in_redis(sn, sid, csr_str):
+        # cert with matching PKey not found in redis
+        if r.exists((sn,sid)): # cert creation in progress
+            return jsonify({
+                "status" : "wait",
+                "delay" : DELAY_GET_SESSION_EXISTS
+            })
+        else: # authenticate
+            sid = random.randint(1,10000000000)
+            nonce = get_nonce()
+            r.setnx((sn,sid),{
+                "nonce" : nonce,
+                "digest" : "",
+                "csr_str" : csr_str,
+            })
+            return jsonify({
+                "status" : "authenticate",
+                "sid" : sid,
+                "nonce" : nonce,
+            })
+
+    csr = crypto.load_certificate_request(
+        type=crypto.FILETYPE_PEM,
+        buffer=csr_str
+    )
+
+    csr_pubkey_str = crypto.dump_publickey(
+        type=crypto.FILETYPE_PEM,
+        pkey=csr.get_pubkey()
+    ).decode("utf-8")
+
+    if r.exists(sn): # cert for requested sn is already in redis
+        cert_str = r.get(sn).decode("utf-8")
+        print("cert z redisu------")
+        print(type(cert_str))
+        print(cert_str)
+        cert = crypto.load_certificate(
+            type=crypto.FILETYPE_PEM,
+            buffer=cert_str
+        )
+        cert_pubkey_str = crypto.dump_publickey(
+            type=crypto.FILETYPE_PEM,
+            pkey=cert.get_pubkey()
+        ).decode("utf-8")
+
+        # cert and csr public key match
+        print("csr public key")
+        print(csr_pubkey_str)
+        print("cert public key")
+        print(cert_pubkey_str)
+        if (csr_pubkey_str == cert_pubkey_str):
+            print("vydavam ulozeny cert")
+            return jsonify({
+                "status" : "ok",
+                "cert" : cert_str
+            })
+
+        else:
+            print("generuji novy cert - pkey does not match")
+            return cert_not_in_redis(sn, sid, csr_str)
+    else:
+        print("cert not in redis, auth")
+        return cert_not_in_redis(sn, sid, csr_str)
+
+def exec_state_auth(sn, sid, digest):
+    if r.exists((sn,sid)): # cert for requested sn is already in redis
+        session_json = json.loads(
+            r.get((sn,sid)).decode("utf-8").replace("'", '"')
+        )
+        print("+-+-+-+--+-+")
+        print(type(session_json))
+        print(session_json)
+        print("+-+-+-+-+-+-")
+        if session_json["digest"]:
+            if session_json["digest"]==digest:
+                return jsonify({
+                    "status" : "accepted",
+                    "delay"  : DELAY_AUTH_AGAIN,
+                })
+            else:
+                print("re-auth: digest does not match")
+                return jsonify({"status" : "error"})
+        else:
+            session_json["digest"] = digest
+            # lze v redisu atomicky? asi ne...
+            r.delete((sn,sid))
+            r.setnx((sn,sid),session_json)
+            r.lpush('csr', {
+                "sn": sn,
+                "sid" : sid,
+                "nonce" : session_json['nonce'],
+                "digest" : digest,
+                "csr_str" : session_json['csr_str'],
+            })
+
+
+
+    # do tohohle jsonu zapisuju typy class str a class int
+    # take prida application/json mimetype
+    #print(str(responses))
+    return jsonify({
+        "status" : "accepted",
+        "delay" : DELAY_AUTH, 
+    })
+
+if __name__ == "__main__":
+    #app.run(host='0.0.0.0',ssl_context='adhoc')
+    app.run(
+        host='0.0.0.0',
+        ssl_context=(
+            'server.pem',
+            'server.key'
+        )
+    )
+
