@@ -48,12 +48,6 @@ def get_arg_parser():
     return parser
 
 
-# TODO odstranit - kontrola, ze bezim
-@app.route("/", methods=['GET'])
-def hello_world():
-    return "Hello World"
-
-
 @app.route("/", methods=['POST'])
 def process_all():
     # request.data is class bytes
