@@ -15,6 +15,13 @@ DELAY_AUTH_AGAIN = 10
 app = Flask(__name__)
 
 
+def print_debug_json(msg, msg_json):
+    root_logger.debug("{}:\n{}".format(
+        msg,
+        json.dumps(msg_json, indent=2),
+    ))
+
+
 def get_arg_parser():
     parser = argparse.ArgumentParser(
             description='Sentinel:cert-api'
@@ -41,6 +48,7 @@ def get_arg_parser():
     return parser
 
 
+# TODO odstranit - kontrola, ze bezim
 @app.route("/", methods=['GET'])
 def hello_world():
     return "Hello World"
@@ -51,33 +59,31 @@ def process_all():
     # request.data is class bytes
     req_json = request.get_json()  # class dict
 
-    root_logger.debug("Incomming connection:\n{}".format(
-        json.dumps(req_json, indent=2)
-    ))
+    print_debug_json("Incomming connection", req_json)
 
     if not req_json.get('sn'):
-        print("sn not present")
+        root_logger.error('sn not present')
         return jsonify({"status": "error"})
 
     if req_json.get('sid') is None:
-        print("sid not present")
+        root_logger.error("sid not present")
         return jsonify({"status": "error"})
 
     if not req_json.get('type'):
-        print("type not present")
+        root_logger.error("type not present")
         return jsonify({"status": "error"})
 
     if not req_json.get("api_version"):
-        print("api version not present")
+        root_logger.error("api version not present")
         return jsonify({"status": "error"})
 
     if req_json['type'] == 'get_cert':
 
         if not req_json.get('csr'):
-            print("csr not present")
+            root_logger.error("csr not present")
             return jsonify({"status": "error"})
 
-        return exec_state_get(
+        return process_req_get(
             req_json["sn"],
             req_json["sid"],
             req_json["csr"]
@@ -85,7 +91,7 @@ def process_all():
         # TODO kontrola formatu sid, sn, csr
 
     elif req_json["type"] == "auth":
-        return exec_state_auth(
+        return process_req_auth(
             req_json["sn"],
             req_json["sid"],
             req_json["digest"],
@@ -100,94 +106,78 @@ def get_nonce():
     ))
 
 
-def exec_state_get(sn, sid, csr_str):
-    root_logger.debug("exec_state_get")
+def get_new_cert(sn, sid, csr_str):
+    """ Certificate with matching private key not found in redis
+    """
+    if r.exists((sn, sid)):  # cert creation in progress
+        # TODO: v pripade, ze klient ztratil svoji nonce, poslat mu ji znovu?
+        root_logger.debug("Certificate creation in progress, sn={}, sid={}".format(sn, sid))
+        return jsonify({
+            "status": "wait",
+            "delay": DELAY_GET_SESSION_EXISTS
+        })
+    else:  # authenticate
+        root_logger.debug("Starting authentication for sn={}".format(sn))
+        sid = random.randint(1, 10000000000)
+        nonce = get_nonce()
+        r.setnx((sn, sid), {
+            "nonce": nonce,
+            "digest": "",
+            "csr_str": csr_str,
+        })
+        return jsonify({
+            "status": "authenticate",
+            "sid": sid,
+            "nonce": nonce,
+        })
 
-    def cert_not_in_redis(sn, sid, csr_str):
-        # cert with matching PKey not found in redis
-        if r.exists((sn, sid)):  # cert creation in progress
-            return jsonify({
-                "status": "wait",
-                "delay": DELAY_GET_SESSION_EXISTS
-            })
-        else:  # authenticate
-            sid = random.randint(1, 10000000000)
-            nonce = get_nonce()
-            r.setnx((sn, sid), {
-                "nonce": nonce,
-                "digest": "",
-                "csr_str": csr_str,
-            })
-            return jsonify({
-                "status": "authenticate",
-                "sid": sid,
-                "nonce": nonce,
-            })
 
-    csr = crypto.load_certificate_request(
-        type=crypto.FILETYPE_PEM,
-        buffer=csr_str
-    )
-
-    csr_pubkey_str = crypto.dump_publickey(
-        type=crypto.FILETYPE_PEM,
-        pkey=csr.get_pubkey()
-    ).decode("utf-8")
-
+def process_req_get(sn, sid, csr_str):
+    root_logger.debug("Processing GET request, sn={}, sid={}".format(sn, sid))
     if r.exists(sn):  # cert for requested sn is already in redis
         cert_str = r.get(sn).decode("utf-8")
-        print("cert z redisu------")
-        print(type(cert_str))
-        print(cert_str)
-        cert = crypto.load_certificate(
-            type=crypto.FILETYPE_PEM,
-            buffer=cert_str
-        )
-        cert_pubkey_str = crypto.dump_publickey(
-            type=crypto.FILETYPE_PEM,
-            pkey=cert.get_pubkey()
-        ).decode("utf-8")
+        root_logger.debug("Certificate found in redis, sn={}".format(sn))
+
+        cert = crypto.load_certificate(type=crypto.FILETYPE_PEM, buffer=cert_str)
+        cert_pubkey_str = crypto.dump_publickey(type=crypto.FILETYPE_PEM, pkey=cert.get_pubkey()).decode("utf-8")
+
+        csr = crypto.load_certificate_request(type=crypto.FILETYPE_PEM, buffer=csr_str)
+        csr_pubkey_str = crypto.dump_publickey(type=crypto.FILETYPE_PEM, pkey=csr.get_pubkey()).decode("utf-8")
 
         # cert and csr public key match
-        print("csr public key")
-        print(csr_pubkey_str)
-        print("cert public key")
-        print(cert_pubkey_str)
         if (csr_pubkey_str == cert_pubkey_str):
-            print("vydavam ulozeny cert")
+            root_logger.info("Certificate restored from redis, sn={}".format(sn))
             return jsonify({
                 "status": "ok",
                 "cert": cert_str
             })
-
         else:
-            print("generuji novy cert - pkey does not match")
-            return cert_not_in_redis(sn, sid, csr_str)
+            root_logger.debug("Certificate key does not match, sn={}".format(sn))
+            return get_new_cert(sn, sid, csr_str)
     else:
-        print("cert not in redis, auth")
-        return cert_not_in_redis(sn, sid, csr_str)
+        root_logger.debug("Certificate not in redis, sn={}".format(sn))
+        return get_new_cert(sn, sid, csr_str)
 
 
-def exec_state_auth(sn, sid, digest):
-    root_logger.debug("exec_state_auth")
-    if r.exists((sn, sid)):  # cert for requested sn is already in redis
-        session_json = json.loads(
-            r.get((sn, sid)).decode("utf-8").replace("'", '"')
-        )
-        print("+-+-+-+--+-+")
-        print(type(session_json))
-        print(session_json)
-        print("+-+-+-+-+-+-")
-        if session_json["digest"]:
+def process_req_auth(sn, sid, digest):
+    root_logger.debug("Processing AUTH request, sn={}, sid={}".format(sn, sid))
+
+    if r.exists((sn, sid)):  # authentication session open / certificate creation in progress
+        root_logger.debug("Authentication session found open for sn={}, sid={}".format(sn, sid))
+        session_json = json.loads(r.get((sn, sid)).decode("utf-8").replace("'", '"'))
+
+        if session_json["digest"]:  # certificate creation in progress
             if session_json["digest"] == digest:
+                root_logger.debug("Digest already saved for sn={}, sid={}".format(sn, sid))
                 return jsonify({
                     "status": "accepted",
                     "delay": DELAY_AUTH_AGAIN,
                 })
             else:
-                print("re-auth: digest does not match")
-                return jsonify({"status": "error"})
-        else:
+                root_logger.debug("Digest does not match the saved one sn={}, sid={}".format(sn, sid))
+                return jsonify({"status": "fail"})
+        else:  # start certificate creation (CA will check the digest first)
+            root_logger.debug("Saving digest for sn={}, sid={}".format(sn, sid))
             session_json["digest"] = digest
             # lze v redisu atomicky? asi ne...
             r.delete((sn, sid))
@@ -200,13 +190,16 @@ def exec_state_auth(sn, sid, digest):
                 "csr_str": session_json['csr_str'],
             })
 
-    # do tohohle jsonu zapisuju typy class str a class int
-    # take prida application/json mimetype
-    # print(str(responses))
-    return jsonify({
-        "status": "accepted",
-        "delay": DELAY_AUTH,
-    })
+        # do tohohle jsonu zapisuju typy str a int
+        # take prida application/json mimetype
+        return jsonify({
+            "status": "accepted",
+            "delay": DELAY_AUTH,
+        })
+
+    else:
+        root_logger.debug("Authentication session not found, sn={}, sid={}".format(sn, sid))
+        return jsonify({"status": "fail"})
 
 
 if __name__ == "__main__":
