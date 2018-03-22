@@ -5,7 +5,6 @@ from flask import request
 from flask import jsonify
 import json
 from OpenSSL import crypto
-import argparse
 import random
 
 DELAY_GET_SESSION_EXISTS = 10
@@ -19,13 +18,6 @@ def print_debug_json(msg, msg_json):
         msg,
         json.dumps(msg_json, indent=2),
     ))
-
-
-def get_arg_parser():
-    parser = argparse.ArgumentParser(
-            description='Sentinel:cert-api'
-    )
-    return parser
 
 
 @app.route("/", methods=['POST'])
@@ -177,9 +169,6 @@ def process_req_auth(sn, sid, digest):
 
 
 if __name__ == "__main__":
-    parser = get_arg_parser()
-    args = parser.parse_args()
-
     app.config.from_envvar('CERT_API_SETTINGS')
     r = redis.StrictRedis(
         host=app.config["REDIS_HOST"],
