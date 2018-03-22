@@ -25,19 +25,6 @@ def get_arg_parser():
     parser = argparse.ArgumentParser(
             description='Sentinel:cert-api'
     )
-    parser.add_argument(
-        '--redis-port',
-        nargs=1,
-        type=int,
-        help='redis port',
-        required=True
-    )
-    parser.add_argument(
-        '--redis-address',
-        nargs=1,
-        help='redis ip address',
-        required=True
-    )
     return parser
 
 
@@ -193,9 +180,10 @@ if __name__ == "__main__":
     parser = get_arg_parser()
     args = parser.parse_args()
 
+    app.config.from_envvar('CERT_API_SETTINGS')
     r = redis.StrictRedis(
-        host=args.redis_address[0],
-        port=args.redis_port[0],
+        host=app.config["REDIS_HOST"],
+        port=app.config["REDIS_PORT"],
         db=0
     )
 
