@@ -3,6 +3,7 @@ import redis
 from flask import Flask
 from flask import request
 from flask import jsonify
+from flask import g
 import json
 from OpenSSL import crypto
 import random
@@ -11,6 +12,16 @@ DELAY_GET_SESSION_EXISTS = 10
 DELAY_AUTH = 10
 DELAY_AUTH_AGAIN = 10
 app = Flask(__name__)
+app.config.from_envvar('CERT_API_SETTINGS')
+
+
+def get_redis():
+    r = g.get('redis', None)
+    if r is None:
+        r = g.redis = redis.StrictRedis(host=app.config["REDIS_HOST"],
+                                        port=app.config["REDIS_PORT"],
+                                        db=0)
+    return r
 
 
 def print_debug_json(msg, msg_json):
@@ -75,7 +86,7 @@ def get_nonce():
 def get_new_cert(sn, sid, csr_str):
     """ Certificate with matching private key not found in redis
     """
-    if r.exists((sn, sid)):  # cert creation in progress
+    if get_redis().exists((sn, sid)):  # cert creation in progress
         # TODO: v pripade, ze klient ztratil svoji nonce, poslat mu ji znovu?
         app.logger.debug("Certificate creation in progress, sn={}, sid={}".format(sn, sid))
         return jsonify({
@@ -86,7 +97,7 @@ def get_new_cert(sn, sid, csr_str):
         app.logger.debug("Starting authentication for sn={}".format(sn))
         sid = random.randint(1, 10000000000)
         nonce = get_nonce()
-        r.setnx((sn, sid), {
+        get_redis().setnx((sn, sid), {
             "nonce": nonce,
             "digest": "",
             "csr_str": csr_str,
@@ -100,8 +111,8 @@ def get_new_cert(sn, sid, csr_str):
 
 def process_req_get(sn, sid, csr_str):
     app.logger.debug("Processing GET request, sn={}, sid={}".format(sn, sid))
-    if r.exists(sn):  # cert for requested sn is already in redis
-        cert_str = r.get(sn).decode("utf-8")
+    if get_redis().exists(sn):  # cert for requested sn is already in redis
+        cert_bytes = get_redis().get(sn)
         app.logger.debug("Certificate found in redis, sn={}".format(sn))
 
         cert = crypto.load_certificate(type=crypto.FILETYPE_PEM, buffer=cert_str)
@@ -128,9 +139,9 @@ def process_req_get(sn, sid, csr_str):
 def process_req_auth(sn, sid, digest):
     app.logger.debug("Processing AUTH request, sn={}, sid={}".format(sn, sid))
 
-    if r.exists((sn, sid)):  # authentication session open / certificate creation in progress
+    if get_redis().exists((sn, sid)):  # authentication session open / certificate creation in progress
         app.logger.debug("Authentication session found open for sn={}, sid={}".format(sn, sid))
-        session_json = json.loads(r.get((sn, sid)).decode("utf-8").replace("'", '"'))
+        session_json = json.loads(get_redis().get((sn, sid)).decode("utf-8").replace("'", '"'))
 
         if session_json["digest"]:  # certificate creation in progress
             if session_json["digest"] == digest:
@@ -146,6 +157,7 @@ def process_req_auth(sn, sid, digest):
             app.logger.debug("Saving digest for sn={}, sid={}".format(sn, sid))
             session_json["digest"] = digest
             # lze v redisu atomicky? asi ne...
+            r = get_redis()
             r.delete((sn, sid))
             r.setnx((sn, sid), session_json)
             r.lpush('csr', {
@@ -166,16 +178,3 @@ def process_req_auth(sn, sid, digest):
     else:
         app.logger.debug("Authentication session not found, sn={}, sid={}".format(sn, sid))
         return jsonify({"status": "fail"})
-
-
-if __name__ == "__main__":
-    app.config.from_envvar('CERT_API_SETTINGS')
-    r = redis.StrictRedis(
-        host=app.config["REDIS_HOST"],
-        port=app.config["REDIS_PORT"],
-        db=0
-    )
-
-    app.run(
-        host='0.0.0.0',
-    )
