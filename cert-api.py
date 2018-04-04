@@ -5,7 +5,8 @@ from flask import request
 from flask import jsonify
 from flask import g
 import json
-from OpenSSL import crypto
+from cryptography.hazmat.backends import default_backend
+from cryptography import x509
 import random
 
 DELAY_GET_SESSION_EXISTS = 10
@@ -109,24 +110,27 @@ def get_new_cert(sn, sid, csr_str):
         })
 
 
+def key_match(cert_bytes, csr_bytes):
+    """ Compare public keys of two cryptographic objects and return True if
+    they are the same, otherwise return False.
+    """
+    cert = x509.load_pem_x509_certificate(cert_bytes, default_backend())
+    csr = x509.load_pem_x509_csr(csr_bytes, default_backend())
+    return cert.public_key().public_numbers() == csr.public_key().public_numbers()
+
+
 def process_req_get(sn, sid, csr_str):
     app.logger.debug("Processing GET request, sn={}, sid={}".format(sn, sid))
     if get_redis().exists(sn):  # cert for requested sn is already in redis
         cert_bytes = get_redis().get(sn)
         app.logger.debug("Certificate found in redis, sn={}".format(sn))
 
-        cert = crypto.load_certificate(type=crypto.FILETYPE_PEM, buffer=cert_str)
-        cert_pubkey_str = crypto.dump_publickey(type=crypto.FILETYPE_PEM, pkey=cert.get_pubkey()).decode("utf-8")
-
-        csr = crypto.load_certificate_request(type=crypto.FILETYPE_PEM, buffer=csr_str)
-        csr_pubkey_str = crypto.dump_publickey(type=crypto.FILETYPE_PEM, pkey=csr.get_pubkey()).decode("utf-8")
-
         # cert and csr public key match
-        if (csr_pubkey_str == cert_pubkey_str):
+        if key_match(cert_bytes, csr_str.encode("utf-8")):
             app.logger.info("Certificate restored from redis, sn={}".format(sn))
             return jsonify({
                 "status": "ok",
-                "cert": cert_str
+                "cert": cert_bytes.decode("utf-8")
             })
         else:
             app.logger.debug("Certificate key does not match, sn={}".format(sn))
