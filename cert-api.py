@@ -12,6 +12,9 @@ import random
 DELAY_GET_SESSION_EXISTS = 10
 DELAY_AUTH = 10
 DELAY_AUTH_AGAIN = 10
+
+AVAIL_FLAGS = {"renew"}
+
 app = Flask(__name__)
 app.config.from_envvar('CERT_API_SETTINGS')
 
@@ -31,6 +34,13 @@ def print_debug_json(msg, msg_json):
         msg,
         json.dumps(msg_json, indent=2),
     ))
+
+
+def param_flags_ok(flags):
+    for flag in flags:
+        if flag not in AVAIL_FLAGS:
+            return False
+    return True
 
 
 @app.route("/", methods=['POST'])
@@ -62,10 +72,15 @@ def process_all():
             app.logger.error("csr not present")
             return jsonify({"status": "error"})
 
+        if "flags" not in req_json or not param_flags_ok(req_json["flags"]):
+            app.logger.error("flags not present or currupted")
+            return jsonify({"status": "error"})
+
         return process_req_get(
             req_json["sn"],
             req_json["sid"],
-            req_json["csr"]
+            req_json["csr"],
+            req_json["flags"],
         )
         # TODO kontrola formatu sid, sn, csr
 
@@ -85,7 +100,7 @@ def get_nonce():
     ))
 
 
-def get_new_cert(sn, sid, csr_str):
+def get_new_cert(sn, sid, csr_str, flags):
     """ Certificate with matching private key not found in redis
     """
     if get_redis().exists((sn, sid)):  # cert creation in progress
@@ -103,6 +118,7 @@ def get_new_cert(sn, sid, csr_str):
             "nonce": nonce,
             "digest": "",
             "csr_str": csr_str,
+            "flags": flags,
         })
         return jsonify({
             "status": "authenticate",
@@ -120,8 +136,10 @@ def key_match(cert_bytes, csr_bytes):
     return cert.public_key().public_numbers() == csr.public_key().public_numbers()
 
 
-def process_req_get(sn, sid, csr_str):
+def process_req_get(sn, sid, csr_str, flags):
     app.logger.debug("Processing GET request, sn={}, sid={}".format(sn, sid))
+    if "renew" in flags:  # when renew is flagged we ignore cert in redis
+        return get_new_cert(sn, sid, csr_str, flags)
     if get_redis().exists(sn):  # cert for requested sn is already in redis
         cert_bytes = get_redis().get(sn)
         app.logger.debug("Certificate found in redis, sn={}".format(sn))
@@ -135,10 +153,10 @@ def process_req_get(sn, sid, csr_str):
             })
         else:
             app.logger.debug("Certificate key does not match, sn={}".format(sn))
-            return get_new_cert(sn, sid, csr_str)
+            return get_new_cert(sn, sid, csr_str, flags)
     else:
         app.logger.debug("Certificate not in redis, sn={}".format(sn))
-        return get_new_cert(sn, sid, csr_str)
+        return get_new_cert(sn, sid, csr_str, flags)
 
 
 def process_req_auth(sn, sid, digest):
@@ -171,6 +189,7 @@ def process_req_auth(sn, sid, digest):
                 "nonce": session_json['nonce'],
                 "digest": digest,
                 "csr_str": session_json['csr_str'],
+                "flags": session_json["flags"],
             })
 
         # do tohohle jsonu zapisuju typy str a int
