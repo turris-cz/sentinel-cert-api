@@ -114,7 +114,7 @@ def get_new_cert(sn, sid, csr_str, flags):
         app.logger.debug("Starting authentication for sn={}".format(sn))
         sid = random.randint(1, 10000000000)
         nonce = get_nonce()
-        get_redis().setnx((sn, sid), {
+        get_redis().setex((sn, sid), app.config["REDIS_SESSION_TIMEOUT"], {
             "nonce": nonce,
             "digest": "",
             "csr_str": csr_str,
@@ -182,7 +182,7 @@ def process_req_auth(sn, sid, digest):
             # lze v redisu atomicky? asi ne...
             r = get_redis()
             r.delete((sn, sid))
-            r.setnx((sn, sid), session_json)
+            r.setex((sn, sid), app.config["REDIS_SESSION_TIMEOUT"], session_json)
             r.lpush('csr', {
                 "sn": sn,
                 "sid": sid,
