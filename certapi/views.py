@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 import redis
-from flask import Flask
 from flask import request
 from flask import jsonify
 from flask import g
@@ -9,13 +8,14 @@ from cryptography.hazmat.backends import default_backend
 from cryptography import x509
 import random
 
+from certapi import app
+
 DELAY_GET_SESSION_EXISTS = 10
 DELAY_AUTH = 10
 DELAY_AUTH_AGAIN = 10
 
 AVAIL_FLAGS = {"renew"}
 
-app = Flask(__name__)
 app.config.from_envvar('CERT_API_SETTINGS')
 
 
