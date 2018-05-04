@@ -43,7 +43,7 @@ def param_flags_ok(flags):
     return True
 
 
-@app.route("/", methods=['POST'])
+@app.route("/v1", methods=['POST'])
 def process_all():
     # request.data is class bytes
     req_json = request.get_json()  # class dict
@@ -60,10 +60,6 @@ def process_all():
 
     if not req_json.get('type'):
         app.logger.error("type not present")
-        return jsonify({"status": "error"})
-
-    if not req_json.get("api_version"):
-        app.logger.error("api version not present")
         return jsonify({"status": "error"})
 
     if req_json['type'] == 'get_cert':
