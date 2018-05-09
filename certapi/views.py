@@ -175,11 +175,10 @@ def process_req_auth(sn, sid, digest):
         else:  # start certificate creation (CA will check the digest first)
             app.logger.debug("Saving digest for sn={}, sid={}".format(sn, sid))
             session_json["digest"] = digest
-            # lze v redisu atomicky? asi ne...
-            r = get_redis()
-            r.delete((sn, sid))
-            r.setex((sn, sid), app.config["REDIS_SESSION_TIMEOUT"], session_json)
-            r.lpush('csr', {
+            pipe = get_redis().pipeline(transaction=True)
+            pipe.delete((sn, sid))
+            pipe.setex((sn, sid), app.config["REDIS_SESSION_TIMEOUT"], session_json)
+            pipe.lpush('csr', {
                 "sn": sn,
                 "sid": sid,
                 "nonce": session_json['nonce'],
@@ -187,6 +186,7 @@ def process_req_auth(sn, sid, digest):
                 "csr_str": session_json['csr_str'],
                 "flags": session_json["flags"],
             })
+            pipe.execute()
 
         # do tohohle jsonu zapisuju typy str a int
         # take prida application/json mimetype
