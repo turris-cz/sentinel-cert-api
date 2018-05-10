@@ -26,7 +26,6 @@ def get_new_cert(sn, sid, csr_str, flags, r):
     """ Certificate with matching private key not found in redis
     """
     if r.exists((sn, sid)):  # cert creation in progress
-        # TODO: v pripade, ze klient ztratil svoji nonce, poslat mu ji znovu?
         app.logger.debug("Certificate creation in progress, sn=%s, sid=%s", sn, sid)
         return {
             "status": "wait",

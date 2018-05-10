@@ -12,6 +12,9 @@ from certapi import certificator
 AVAIL_FLAGS = {"renew"}
 
 
+AVAIL_REQUEST_TYPES = {"get_cert", "auth"}
+
+
 def get_redis():
     r = g.get('redis', None)
     if r is None:
@@ -29,6 +32,10 @@ def param_flags_ok(flags):
     return True
 
 
+def param_type_ok(req_type):
+    return req_type in AVAIL_REQUEST_TYPES
+
+
 def print_debug_json(msg, msg_json):
     app.logger.debug("{}:\n{}".format(
         msg,
@@ -43,20 +50,31 @@ def process_all():
 
     print_debug_json("Incomming connection", req_json)
 
-    if not req_json.get('sn'):
-        app.logger.error('sn not present')
+    if not req_json.get("sn"):
+        app.logger.error("sn not present")
         return jsonify({"status": "error"})
 
-    if req_json.get('sid') is None:
+    try:
+        int(req_json.get("sn"), 16)
+    except ValueError:
+        app.logger.error("sn bad format")
+        return jsonify({"status": "error"})
+
+    if req_json.get("sid") is None:
         app.logger.error("sid not present")
         return jsonify({"status": "error"})
 
-    if not req_json.get('type'):
+    try:
+        int(req_json.get("sid"))
+    except ValueError:
+        app.logger.error("sid bad format")
+        return jsonify({"status": "error"})
+
+    if not req_json.get("type") or not param_type_ok(req_json.get("type")):
         app.logger.error("type not present")
         return jsonify({"status": "error"})
 
     if req_json['type'] == 'get_cert':
-
         if not req_json.get('csr'):
             app.logger.error("csr not present")
             return jsonify({"status": "error"})
@@ -71,7 +89,6 @@ def process_all():
                                              req_json["flags"],
                                              get_redis())
         return jsonify(reply)
-        # TODO kontrola formatu sid, sn, csr
 
     elif req_json["type"] == "auth":
         reply = certificator.process_req_auth(req_json["sn"],
