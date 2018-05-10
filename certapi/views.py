@@ -1,4 +1,6 @@
 #!/usr/bin/env python
+import os
+
 import redis
 from flask import request
 from flask import jsonify
@@ -89,11 +91,7 @@ def process_all():
 
 
 def get_nonce():
-    # TODO vylepsit
-    return str(random.randint(
-        1000000000000000000000000000000000000000000000000000000000000000,
-        9999999999999999999999999999999999999999999999999999999999999999
-    ))
+    return os.urandom(32).hex()
 
 
 def get_new_cert(sn, sid, csr_str, flags):
