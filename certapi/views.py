@@ -36,11 +36,8 @@ def param_type_ok(req_type):
     return req_type in AVAIL_REQUEST_TYPES
 
 
-def print_debug_json(msg, msg_json):
-    app.logger.debug("{}:\n{}".format(
-        msg,
-        json.dumps(msg_json, indent=2),
-    ))
+def log_debug_json(msg, msg_json):
+    app.logger.debug("%s:\n%s", msg, json.dumps(msg_json, indent=2))
 
 
 @app.route("/v1", methods=['POST'])
@@ -48,39 +45,39 @@ def process_all():
     # request.data is class bytes
     req_json = request.get_json()  # class dict
 
-    print_debug_json("Incomming connection", req_json)
+    log_debug_json("Incomming connection", req_json)
 
     if not req_json.get("sn"):
-        app.logger.error("sn not present")
+        app.logger.info("Incomming connection: sn not present")
         return jsonify({"status": "error"})
 
     try:
         int(req_json.get("sn"), 16)
     except ValueError:
-        app.logger.error("sn bad format")
+        app.logger.info("Incomming connection: sn bad format")
         return jsonify({"status": "error"})
 
     if req_json.get("sid") is None:
-        app.logger.error("sid not present")
+        app.logger.info("Incomming connection: sid not present")
         return jsonify({"status": "error"})
 
     try:
         int(req_json.get("sid"))
     except ValueError:
-        app.logger.error("sid bad format")
+        app.logger.info("Incomming connection: sid bad format")
         return jsonify({"status": "error"})
 
     if not req_json.get("type") or not param_type_ok(req_json.get("type")):
-        app.logger.error("type not present")
+        app.logger.info("Incomming connection: type not present")
         return jsonify({"status": "error"})
 
     if req_json['type'] == 'get_cert':
         if not req_json.get('csr'):
-            app.logger.error("csr not present")
+            app.logger.info("Incomming connection: csr not present")
             return jsonify({"status": "error"})
 
         if "flags" not in req_json or not param_flags_ok(req_json["flags"]):
-            app.logger.error("flags not present or currupted")
+            app.logger.info("Incomming connection: flags not present or currupted")
             return jsonify({"status": "error"})
 
         reply = certificator.process_req_get(req_json["sn"],
@@ -88,6 +85,7 @@ def process_all():
                                              req_json["csr"],
                                              req_json["flags"],
                                              get_redis())
+        log_debug_json("Reply", reply)
         return jsonify(reply)
 
     elif req_json["type"] == "auth":
@@ -95,4 +93,5 @@ def process_all():
                                               req_json["sid"],
                                               req_json["digest"],
                                               get_redis())
+        log_debug_json("Reply", reply)
         return jsonify(reply)

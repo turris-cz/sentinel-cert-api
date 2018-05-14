@@ -13,11 +13,6 @@ DELAY_AUTH = 10
 DELAY_AUTH_AGAIN = 10
 
 
-def print_debug_json(msg, msg_json):
-    app.logger.debug("{}:\n{}".format(msg,
-                                      json.dumps(msg_json, indent=2)))
-
-
 def get_nonce():
     return os.urandom(32).hex()
 
@@ -67,7 +62,7 @@ def process_req_get(sn, sid, csr_str, flags, r):
 
         # cert and csr public key match
         if key_match(cert_bytes, csr_str.encode("utf-8")):
-            app.logger.info("Certificate restored from redis, sn=%s", sn)
+            app.logger.debug("Certificate restored from redis, sn=%s", sn)
             return {
                 "status": "ok",
                 "cert": cert_bytes.decode("utf-8")
