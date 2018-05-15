@@ -10,9 +10,8 @@ from certapi import app
 from certapi import certificator
 
 AVAIL_FLAGS = {"renew"}
-
-
 AVAIL_REQUEST_TYPES = {"get_cert", "auth"}
+AVAIL_AUTH_TYPES = {"atsha"}
 
 
 def get_redis():
@@ -23,6 +22,10 @@ def get_redis():
                                         password=app.config["REDIS_PASSWORD"],
                                         db=0)
     return r
+
+
+def param_auth_type_ok(auth_type):
+    return auth_type in AVAIL_AUTH_TYPES
 
 
 def param_flags_ok(flags):
@@ -92,6 +95,7 @@ def process_all():
         reply = certificator.process_req_auth(req_json["sn"],
                                               req_json["sid"],
                                               req_json["digest"],
+                                              req_json["auth_type"],
                                               get_redis())
         log_debug_json("Reply", reply)
         return jsonify(reply)

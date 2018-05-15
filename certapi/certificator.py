@@ -75,7 +75,7 @@ def process_req_get(sn, sid, csr_str, flags, r):
         return get_new_cert(sn, sid, csr_str, flags, r)
 
 
-def process_req_auth(sn, sid, digest, r):
+def process_req_auth(sn, sid, digest, auth_type, r):
     app.logger.debug("Processing AUTH request, sn=%s, sid=%s", sn, sid)
 
     if r.exists((sn, sid)):  # authentication session open / certificate creation in progress
@@ -105,6 +105,7 @@ def process_req_auth(sn, sid, digest, r):
                 "digest": digest,
                 "csr_str": session_json['csr_str'],
                 "flags": session_json["flags"],
+                "auth_type": auth_type,
             })
             pipe.execute()
 
