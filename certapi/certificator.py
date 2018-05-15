@@ -17,30 +17,23 @@ def get_nonce():
     return os.urandom(32).hex()
 
 
-def get_new_cert(sn, sid, csr_str, flags, r):
+def generate_nonce(sn, sid, csr_str, flags, r):
     """ Certificate with matching private key not found in redis
     """
-    if r.exists((sn, sid)):  # cert creation in progress
-        app.logger.debug("Certificate creation in progress, sn=%s, sid=%s", sn, sid)
-        return {
-            "status": "wait",
-            "delay": DELAY_GET_SESSION_EXISTS
-        }
-    else:  # authenticate
-        app.logger.debug("Starting authentication for sn=%s", sn)
-        sid = random.randint(1, 10000000000)
-        nonce = get_nonce()
-        r.setex((sn, sid), app.config["REDIS_SESSION_TIMEOUT"], {
-            "nonce": nonce,
-            "digest": "",
-            "csr_str": csr_str,
-            "flags": flags,
-        })
-        return {
-            "status": "authenticate",
-            "sid": sid,
-            "nonce": nonce,
-        }
+    app.logger.debug("Starting authentication for sn=%s", sn)
+    sid = random.randint(1, 10000000000)
+    nonce = get_nonce()
+    r.setex((sn, sid), app.config["REDIS_SESSION_TIMEOUT"], {
+        "nonce": nonce,
+        "digest": "",
+        "csr_str": csr_str,
+        "flags": flags,
+    })
+    return {
+        "status": "authenticate",
+        "sid": sid,
+        "nonce": nonce,
+    }
 
 
 def key_match(cert_bytes, csr_bytes):
@@ -55,7 +48,30 @@ def key_match(cert_bytes, csr_bytes):
 def process_req_get(sn, sid, csr_str, flags, r):
     app.logger.debug("Processing GET request, sn=%s, sid=%s", sn, sid)
     if "renew" in flags:  # when renew is flagged we ignore cert in redis
-        return get_new_cert(sn, sid, csr_str, flags, r)
+        return generate_nonce(sn, sid, csr_str, flags, r)
+    authenticated = False
+    if r.exists((sn, sid)):
+        if r.exists(("auth_state", sn, sid)):
+            try:
+                auth_state = json.loads(r.get(("auth_state", sn, sid)).decode("utf-8").replace("'", '"'))
+                if auth_state["status"] == "ok":
+                    authenticated = True
+                elif auth_state["status"] == "failed":
+                    return {"status": "auth_failed"}
+                else:
+                    app.logger.error("auth_state invalid value in session sn=%s, sid=%s", sn, sid)
+                    return {"status": "error"}
+            except KeyError as e:
+                # the problem might be with CA or data in Redis, nevetheless we
+                # have to inform the client that something bad happened
+                app.logger.error(e)
+                return {"status": "error"}
+        else:
+            app.logger.debug("Certificate creation in progress, sn=%s, sid=%s", sn, sid)
+            return {
+                "status": "wait",
+                "delay": DELAY_GET_SESSION_EXISTS
+            }
     if r.exists(sn):  # cert for requested sn is already in redis
         cert_bytes = r.get(sn)
         app.logger.debug("Certificate found in redis, sn=%s", sn)
@@ -68,11 +84,17 @@ def process_req_get(sn, sid, csr_str, flags, r):
                 "cert": cert_bytes.decode("utf-8")
             }
         else:
-            app.logger.debug("Certificate key does not match, sn=%s", sn)
-            return get_new_cert(sn, sid, csr_str, flags, r)
+            if authenticated:
+                app.logger.warning("Auth OK but certificate key does not match, sn=%s", sn)
+            else:
+                app.logger.debug("Certificate key does not match, sn=%s", sn)
+            return generate_nonce(sn, sid, csr_str, flags, r)
     else:
-        app.logger.debug("Certificate not in redis, sn=%s", sn)
-        return get_new_cert(sn, sid, csr_str, flags, r)
+        if authenticated:
+            app.logger.warning("Auth OK but certificate not in redis, sn=%s", sn)
+        else:
+            app.logger.debug("Certificate not in redis, sn=%s", sn)
+        return generate_nonce(sn, sid, csr_str, flags, r)
 
 
 def process_req_auth(sn, sid, digest, auth_type, r):

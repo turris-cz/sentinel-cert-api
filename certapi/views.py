@@ -83,6 +83,11 @@ def process_all():
             app.logger.info("Incomming connection: flags not present or currupted")
             return jsonify({"status": "error"})
 
+        # renew flag may be sent only before the auth session starts
+        if "renew" in req_json["flags"]:
+            if int(req_json["sid"]) != 0:
+                return jsonify({"status": "fail"})
+
         reply = certificator.process_req_get(req_json["sn"],
                                              req_json["sid"],
                                              req_json["csr"],
