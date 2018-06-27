@@ -11,7 +11,7 @@ from certapi import certificator
 
 AVAIL_FLAGS = {"renew"}
 AVAIL_REQUEST_TYPES = {"get_cert", "auth"}
-AVAIL_AUTH_TYPES = {"atsha"}
+AVAIL_AUTH_TYPES = {"atsha204"}
 
 
 def get_redis():
