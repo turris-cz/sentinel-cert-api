@@ -56,12 +56,15 @@ def generate_nonce(sn, sid, csr_str, flags, r):
     app.logger.debug("Starting authentication for sn=%s", sn)
     sid = random.randint(1, MAX_SID)
     nonce = get_nonce()
-    r.setex(get_session_key(sn, sid), app.config["REDIS_SESSION_TIMEOUT"], {
+    session = {
         "nonce": nonce,
         "digest": "",
         "csr_str": csr_str,
         "flags": flags,
-    })
+    }
+    r.setex(get_session_key(sn, sid),
+            app.config["REDIS_SESSION_TIMEOUT"],
+            json.dumps(session))
     return {
         "status": "authenticate",
         "sid": sid,
@@ -84,9 +87,10 @@ def process_req_get(sn, sid, csr_str, flags, r):
         return generate_nonce(sn, sid, csr_str, flags, r)
     authenticated = False
     if r.exists(get_session_key(sn, sid)):
-        if r.exists(get_auth_state_key(sn, sid)):
+        auth_state = r.get(get_auth_state_key(sn, sid))
+        if auth_state is not None:
+            auth_state = json.loads(auth_state.decode("utf-8"))
             try:
-                auth_state = json.loads(r.get(get_auth_state_key(sn, sid)).decode("utf-8").replace("'", '"'))
                 if auth_state["status"] == "ok":
                     authenticated = True
                 elif auth_state["status"] == "failed":
@@ -105,8 +109,9 @@ def process_req_get(sn, sid, csr_str, flags, r):
                 "status": "wait",
                 "delay": DELAY_GET_SESSION_EXISTS
             }
-    if r.exists(get_cert_key(sn)):  # cert for requested sn is already in redis
-        cert_bytes = r.get(get_cert_key(sn))
+
+    cert_bytes = r.get(get_cert_key(sn))
+    if cert_bytes is not None:
         app.logger.debug("Certificate found in redis, sn=%s", sn)
 
         # cert and csr public key match
@@ -133,9 +138,10 @@ def process_req_get(sn, sid, csr_str, flags, r):
 def process_req_auth(sn, sid, digest, auth_type, r):
     app.logger.debug("Processing AUTH request, sn=%s, sid=%s", sn, sid)
 
-    if r.exists(get_session_key(sn, sid)):  # authentication session open / certificate creation in progress
+    session = r.get(get_session_key(sn, sid))
+    if session is not None:  # authentication session open / certificate creation in progress
         app.logger.debug("Authentication session found open for sn=%s, sid=%s", sn, sid)
-        session_json = json.loads(r.get(get_session_key(sn, sid)).decode("utf-8").replace("'", '"'))
+        session_json = json.loads(session.decode("utf-8"))
 
         if session_json["digest"]:  # certificate creation in progress
             if session_json["digest"] == digest:
@@ -154,8 +160,8 @@ def process_req_auth(sn, sid, digest, auth_type, r):
             pipe.delete(get_session_key(sn, sid))
             pipe.setex(get_session_key(sn, sid),
                        app.config["REDIS_SESSION_TIMEOUT"],
-                       session_json)
-            pipe.lpush('csr', {
+                       json.dumps(session_json))
+            request = {
                 "sn": sn,
                 "sid": sid,
                 "nonce": session_json['nonce'],
@@ -163,7 +169,8 @@ def process_req_auth(sn, sid, digest, auth_type, r):
                 "csr_str": session_json['csr_str'],
                 "flags": session_json["flags"],
                 "auth_type": auth_type,
-            })
+            }
+            pipe.lpush('csr', json.dumps(request))
             pipe.execute()
 
         return {
