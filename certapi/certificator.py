@@ -4,6 +4,7 @@ import os
 import random
 
 from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives import hashes
 from cryptography import x509
 
 from certapi import app
@@ -13,25 +14,114 @@ DELAY_AUTH = 10
 DELAY_AUTH_AGAIN = 10
 
 AVAIL_REQUEST_TYPES = {"get_cert", "auth"}
-AVAIL_AUTH_TYPES = {"atsha204"}
 AVAIL_FLAGS = {"renew"}
+AVAIL_HASHES = {
+    hashes.SHA224,
+    hashes.SHA256,
+    hashes.SHA384,
+    hashes.SHA512,
+}
+
 
 MAX_SID = 10000000000
 
 
-def param_auth_type_ok(auth_type):
-    return auth_type in AVAIL_AUTH_TYPES
+class InvalidParamError(Exception):
+    pass
 
 
-def param_flags_ok(flags):
+def validate_sn_atsha(sn):
+    if len(sn) != 16:
+        raise InvalidParamError("SN has invalid length.")
+    if sn[0:5] != "00000":
+        raise InvalidParamError("SN has invalid format.")
+    try:
+        sn_value = int(sn, 16)
+    except ValueError:
+        raise InvalidParamError("SN has invalid format.")
+    if sn_value % 11 != 0:
+        raise InvalidParamError("SN has invalid format.")
+
+
+sn_validators = {
+    "atsha204": validate_sn_atsha,
+}
+
+
+def validate_csr_common_name(csr, identity):
+    common_names = csr.subject.get_attributes_for_oid(x509.NameOID.COMMON_NAME)
+    if len(common_names) != 1:
+        raise InvalidParamError("CSR has not exactly one CommonName")
+
+    common_name = common_names[0].value
+    if common_name != identity:
+        raise InvalidParamError("CSR CommonName ({}) does not match desired identity".format(common_name))
+
+
+def validate_csr_hash(csr):
+    h = csr.signature_hash_algorithm
+    if type(h) not in AVAIL_HASHES:
+        raise InvalidParamError("CSR is signed with not allowed hash ({})".format(h.name))
+
+
+def validate_csr_signature(csr):
+    if not csr.is_signature_valid:
+        raise InvalidParamError("Request signature is not valid")
+
+
+def csr_from_str(csr_str):
+    try:
+        # construct x509 request from PEM string
+        csr_data = bytes(csr_str, encoding='utf-8')
+        csr = x509.load_pem_x509_csr(
+                data=csr_data,
+                backend=default_backend()
+        )
+    except (UnicodeEncodeError, ValueError):
+        raise InvalidParamError("Invalid CSR format")
+
+    return csr
+
+
+def validate_csr(csr, sn):
+    csr = csr_from_str(csr)
+    validate_csr_common_name(csr, sn)
+    validate_csr_hash(csr)
+    validate_csr_signature(csr)
+
+
+def validate_flags(flags):
     for flag in flags:
         if flag not in AVAIL_FLAGS:
-            return False
-    return True
+            raise InvalidParamError("Flag not available: {}".format(flag))
 
 
-def param_type_ok(req_type):
-    return req_type in AVAIL_REQUEST_TYPES
+def validate_req_type(req_type):
+    if req_type not in AVAIL_REQUEST_TYPES:
+        raise InvalidParamError("Invalid request type: {}".format(req_type))
+
+
+def validate_sid(sid):
+    try:
+        sid = int(sid)
+        if sid > MAX_SID:
+            raise InvalidParamError("Invalid sid : {}".format(sid))
+    except ValueError:
+        raise InvalidParamError("Bad format of sid")
+
+
+def validate_digest(digest):
+    if (len(digest) != 64 or not digest.islower):
+        raise InvalidParamError("Bad format of digest : {}".format(digest))
+    try:
+        digest = int(digest, 16)
+    except ValueError:
+        raise InvalidParamError("Bad format of digest : {}".format(digest))
+
+
+def validate_auth_type(auth_type):
+    if auth_type not in sn_validators:
+        raise InvalidParamError("Invalid auth type: {}".format(auth_type))
 
 
 def get_nonce():
@@ -50,13 +140,14 @@ def get_cert_key(sn):
     return "certificate:{}".format(sn)
 
 
-def generate_nonce(sn, sid, csr_str, flags, r):
+def generate_nonce(sn, sid, csr_str, flags, auth_type, r):
     """ Certificate with matching private key not found in redis
     """
     app.logger.debug("Starting authentication for sn=%s", sn)
     sid = random.randint(1, MAX_SID)
     nonce = get_nonce()
     session = {
+        "auth_type": auth_type,
         "nonce": nonce,
         "digest": "",
         "csr_str": csr_str,
@@ -81,10 +172,10 @@ def key_match(cert_bytes, csr_bytes):
     return cert.public_key().public_numbers() == csr.public_key().public_numbers()
 
 
-def process_req_get(sn, sid, csr_str, flags, r):
+def process_req_get(sn, sid, csr_str, flags, auth_type, r):
     app.logger.debug("Processing GET request, sn=%s, sid=%s", sn, sid)
     if "renew" in flags:  # when renew is flagged we ignore cert in redis
-        return generate_nonce(sn, sid, csr_str, flags, r)
+        return generate_nonce(sn, sid, csr_str, flags, auth_type, r)
     authenticated = False
     if r.exists(get_session_key(sn, sid)):
         auth_state = r.get(get_auth_state_key(sn, sid))
@@ -126,13 +217,13 @@ def process_req_get(sn, sid, csr_str, flags, r):
                 app.logger.warning("Auth OK but certificate key does not match, sn=%s", sn)
             else:
                 app.logger.debug("Certificate key does not match, sn=%s", sn)
-            return generate_nonce(sn, sid, csr_str, flags, r)
+            return generate_nonce(sn, sid, csr_str, flags, auth_type, r)
     else:
         if authenticated:
             app.logger.warning("Auth OK but certificate not in redis, sn=%s", sn)
         else:
             app.logger.debug("Certificate not in redis, sn=%s", sn)
-        return generate_nonce(sn, sid, csr_str, flags, r)
+        return generate_nonce(sn, sid, csr_str, flags, auth_type, r)
 
 
 def process_req_auth(sn, sid, digest, auth_type, r):
@@ -142,6 +233,9 @@ def process_req_auth(sn, sid, digest, auth_type, r):
     if session is not None:  # authentication session open / certificate creation in progress
         app.logger.debug("Authentication session found open for sn=%s, sid=%s", sn, sid)
         session_json = json.loads(session.decode("utf-8"))
+        if session_json["auth_type"] != auth_type:
+            app.logger.debug("Authentication type does not match, sn=%s, sid=%s", sn, sid)
+            return {"status": "fail"}
 
         if session_json["digest"]:  # certificate creation in progress
             if session_json["digest"] == digest:
@@ -184,52 +278,40 @@ def process_req_auth(sn, sid, digest, auth_type, r):
 
 
 def process_request(req_json, r):
-    if not req_json.get("sn"):
-        app.logger.info("Incomming connection: sn not present")
+    if type(req_json) is not dict:
+        app.logger.warning("Request failure: not a valid json")
         return {"status": "error"}
-
     try:
-        int(req_json.get("sn"), 16)
-    except ValueError:
-        app.logger.info("Incomming connection: sn bad format")
+        validate_req_type(req_json["type"])
+        validate_auth_type(req_json["auth_type"])
+        validate_sn = sn_validators[req_json["auth_type"]]
+        validate_sn(req_json["sn"])
+        validate_sid(req_json["sid"])
+
+        if req_json["type"] == "get_cert":
+            validate_csr(req_json["csr"], req_json["sn"])
+            validate_flags(req_json["flags"])
+        elif req_json["type"] == "auth":
+            validate_digest(req_json["digest"])
+
+    except KeyError as e:
+        app.logger.warning("Request failure: parameter missing: %s", e)
         return {"status": "error"}
-
-    if req_json.get("sid") is None:
-        app.logger.info("Incomming connection: sid not present")
-        return {"status": "error"}
-
-    try:
-        sid = int(req_json.get("sid"))
-        if sid > MAX_SID:
-            app.logger.info("Incomming connection: sid too big")
-            return {"status": "error"}
-
-    except ValueError:
-        app.logger.info("Incomming connection: sid bad format")
-        return {"status": "error"}
-
-    if not req_json.get("type") or not param_type_ok(req_json.get("type")):
-        app.logger.info("Incomming connection: type not present")
+    except InvalidParamError as e:
+        app.logger.warning("Request failure: %s", e)
         return {"status": "error"}
 
     if req_json["type"] == "get_cert":
-        if not req_json.get("csr"):
-            app.logger.info("Incomming connection: csr not present")
-            return {"status": "error"}
-
-        if "flags" not in req_json or not param_flags_ok(req_json["flags"]):
-            app.logger.info("Incomming connection: flags not present or currupted")
-            return {"status": "error"}
-
         # renew flag may be sent only before the auth session starts
         if "renew" in req_json["flags"]:
-            if int(req_json["sid"]) != 0:
+            if req_json["sid"]:
                 return {"status": "fail"}
 
         reply = process_req_get(req_json["sn"],
                                 req_json["sid"],
                                 req_json["csr"],
                                 req_json["flags"],
+                                req_json["auth_type"],
                                 r)
         return reply
 
