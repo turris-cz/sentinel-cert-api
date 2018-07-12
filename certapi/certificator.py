@@ -22,11 +22,22 @@ AVAIL_HASHES = {
     hashes.SHA512,
 }
 
+SESSION_PARAMS = {
+    "auth_type",
+    "nonce",
+    "digest",
+    "csr_str",
+    "flags",
+}
 
 MAX_SID = 10000000000
 
 
 class InvalidParamError(Exception):
+    pass
+
+
+class InvalidSessionError(Exception):
     pass
 
 
@@ -140,6 +151,12 @@ def get_cert_key(sn):
     return "certificate:{}".format(sn)
 
 
+def check_session(session):
+    for param in SESSION_PARAMS:
+        if param not in session:
+            raise InvalidSessionError(param)
+
+
 def generate_nonce(sn, sid, csr_str, flags, auth_type, r):
     """ Certificate with matching private key not found in redis
     """
@@ -190,9 +207,7 @@ def process_req_get(sn, sid, csr_str, flags, auth_type, r):
                     app.logger.error("auth_state invalid value in session sn=%s, sid=%s", sn, sid)
                     return {"status": "error"}
             except KeyError as e:
-                # the problem might be with CA or data in Redis, nevetheless we
-                # have to inform the client that something bad happened
-                app.logger.error(e)
+                app.logger.error("Value missing in Redis session (%s) sn=%s, sid=%s", e, sn, sid)
                 return {"status": "error"}
         else:
             app.logger.debug("Certificate creation in progress, sn=%s, sid=%s", sn, sid)
@@ -230,51 +245,56 @@ def process_req_auth(sn, sid, digest, auth_type, r):
     app.logger.debug("Processing AUTH request, sn=%s, sid=%s", sn, sid)
 
     session = r.get(get_session_key(sn, sid))
-    if session is not None:  # authentication session open / certificate creation in progress
-        app.logger.debug("Authentication session found open for sn=%s, sid=%s", sn, sid)
-        session_json = json.loads(session.decode("utf-8"))
-        if session_json["auth_type"] != auth_type:
-            app.logger.debug("Authentication type does not match, sn=%s, sid=%s", sn, sid)
-            return {"status": "fail"}
-
-        if session_json["digest"]:  # certificate creation in progress
-            if session_json["digest"] == digest:
-                app.logger.debug("Digest already saved for sn=%s, sid=%s", sn, sid)
-                return {
-                    "status": "accepted",
-                    "delay": DELAY_AUTH_AGAIN,
-                }
-            else:
-                app.logger.debug("Digest does not match the saved one sn=%s, sid=%s", sn, sid)
-                return {"status": "fail"}
-        else:  # start certificate creation (CA will check the digest first)
-            app.logger.debug("Saving digest for sn=%s, sid=%s", sn, sid)
-            session_json["digest"] = digest
-            pipe = r.pipeline(transaction=True)
-            pipe.delete(get_session_key(sn, sid))
-            pipe.setex(get_session_key(sn, sid),
-                       app.config["REDIS_SESSION_TIMEOUT"],
-                       json.dumps(session_json))
-            request = {
-                "sn": sn,
-                "sid": sid,
-                "nonce": session_json['nonce'],
-                "digest": digest,
-                "csr_str": session_json['csr_str'],
-                "flags": session_json["flags"],
-                "auth_type": auth_type,
-            }
-            pipe.lpush('csr', json.dumps(request))
-            pipe.execute()
-
-        return {
-            "status": "accepted",
-            "delay": DELAY_AUTH,
-        }
-
-    else:
+    if not session:  # authentication session open / certificate creation in progress
         app.logger.debug("Authentication session not found, sn=%s, sid=%s", sn, sid)
         return {"status": "fail"}
+
+    app.logger.debug("Authentication session found open for sn=%s, sid=%s", sn, sid)
+    session_json = json.loads(session.decode("utf-8"))
+
+    try:
+        check_session(session_json)
+    except InvalidSessionError as e:
+        app.logger.error("Value missing in Redis session (%s) sn=%s, sid=%s", e, sn, sid)
+        return {"status": "error"}
+    if session_json["auth_type"] != auth_type:
+        app.logger.debug("Authentication type does not match, sn=%s, sid=%s", sn, sid)
+        return {"status": "fail"}
+
+    if session_json["digest"]:  # certificate creation in progress
+        if session_json["digest"] == digest:
+            app.logger.debug("Digest already saved for sn=%s, sid=%s", sn, sid)
+            return {
+                "status": "accepted",
+                "delay": DELAY_AUTH_AGAIN,
+            }
+        else:
+            app.logger.debug("Digest does not match the saved one sn=%s, sid=%s", sn, sid)
+            return {"status": "fail"}
+    else:  # start certificate creation (CA will check the digest first)
+        app.logger.debug("Saving digest for sn=%s, sid=%s", sn, sid)
+        session_json["digest"] = digest
+        pipe = r.pipeline(transaction=True)
+        pipe.delete(get_session_key(sn, sid))
+        pipe.setex(get_session_key(sn, sid),
+                   app.config["REDIS_SESSION_TIMEOUT"],
+                   json.dumps(session_json))
+        request = {
+            "sn": sn,
+            "sid": sid,
+            "nonce": session_json['nonce'],
+            "digest": digest,
+            "csr_str": session_json['csr_str'],
+            "flags": session_json["flags"],
+            "auth_type": auth_type,
+        }
+        pipe.lpush('csr', json.dumps(request))
+        pipe.execute()
+
+    return {
+        "status": "accepted",
+        "delay": DELAY_AUTH,
+    }
 
 
 def process_request(req_json, r):
