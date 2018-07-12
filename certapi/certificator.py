@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 import json
 import os
-import random
 
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import hashes
@@ -29,8 +28,6 @@ SESSION_PARAMS = {
     "csr_str",
     "flags",
 }
-
-MAX_SID = 10000000000
 
 
 class InvalidParamError(Exception):
@@ -113,12 +110,14 @@ def validate_req_type(req_type):
 
 
 def validate_sid(sid):
+    if sid == "":
+        return
+    if (len(sid) != 64 or not sid.islower):
+        raise InvalidParamError("Bad format of sid : {}".format(sid))
     try:
-        sid = int(sid)
-        if sid > MAX_SID:
-            raise InvalidParamError("Invalid sid : {}".format(sid))
+        sid = int(sid, 16)
     except ValueError:
-        raise InvalidParamError("Bad format of sid")
+        raise InvalidParamError("Bad format of sid : {}".format(sid))
 
 
 def validate_digest(digest):
@@ -135,7 +134,11 @@ def validate_auth_type(auth_type):
         raise InvalidParamError("Invalid auth type: {}".format(auth_type))
 
 
-def get_nonce():
+def create_random_nonce():
+    return os.urandom(32).hex()
+
+
+def create_random_sid():
     return os.urandom(32).hex()
 
 
@@ -161,8 +164,8 @@ def generate_nonce(sn, sid, csr_str, flags, auth_type, r):
     """ Certificate with matching private key not found in redis
     """
     app.logger.debug("Starting authentication for sn=%s", sn)
-    sid = random.randint(1, MAX_SID)
-    nonce = get_nonce()
+    sid = create_random_sid()
+    nonce = create_random_nonce()
     session = {
         "auth_type": auth_type,
         "nonce": nonce,
