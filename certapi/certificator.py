@@ -244,55 +244,75 @@ def process_req_get(sn, sid, csr_str, flags, auth_type, r):
         return generate_nonce(sn, sid, csr_str, flags, auth_type, r)
 
 
+def get_auth_session(sn, sid, r):
+    """ Get state of client session from Redis. If the session is broken
+    or missing, return fail info.
+    """
+    session_json = r.get(get_session_key(sn, sid))
+    if not session_json:  # authentication session open / certificate creation in progress
+        app.logger.debug("Authentication session not found, sn=%s, sid=%s", sn, sid)
+        return (None, {"status": "fail"})
+
+    try:
+        session = json.loads(session_json.decode("utf-8"))
+    except UnicodeDecodeError:
+        app.logger.error("UnicodeDecodeError for session sn=%s, sid=%s", sn, sid)
+        return (None, {"status": "error"})
+    except json.decoder.JSONDecodeError:
+        app.logger.error("JSONDecodeError for session sn=%s, sid=%s", sn, sid)
+        return (None, {"status": "error"})
+
+    try:
+        check_session(session)
+    except InvalidSessionError as e:
+        app.logger.error("Value missing in Redis session (%s) sn=%s, sid=%s", e, sn, sid)
+        return (None, {"status": "error"})
+
+    return (session, None)
+
+
+def push_csr(sn, sid, session, digest, r):
+    """ Push csr to the queue in Redis and add digest to the auth session
+    """
+    session["digest"] = digest
+    pipe = r.pipeline(transaction=True)
+    pipe.delete(get_session_key(sn, sid))
+    pipe.setex(get_session_key(sn, sid),
+               app.config["REDIS_SESSION_TIMEOUT"],
+               json.dumps(session))
+    request = {
+        "sn": sn,
+        "sid": sid,
+        "nonce": session['nonce'],
+        "digest": digest,
+        "csr_str": session['csr_str'],
+        "flags": session["flags"],
+        "auth_type": session["auth_type"],
+    }
+    pipe.lpush('csr', json.dumps(request))
+    pipe.execute()
+
+
 def process_req_auth(sn, sid, digest, auth_type, r):
     app.logger.debug("Processing AUTH request, sn=%s, sid=%s", sn, sid)
 
-    session = r.get(get_session_key(sn, sid))
-    if not session:  # authentication session open / certificate creation in progress
-        app.logger.debug("Authentication session not found, sn=%s, sid=%s", sn, sid)
-        return {"status": "fail"}
+    (session, status) = get_auth_session(sn, sid, r)
+    if not session:
+        return status
 
     app.logger.debug("Authentication session found open for sn=%s, sid=%s", sn, sid)
-    session_json = json.loads(session.decode("utf-8"))
 
-    try:
-        check_session(session_json)
-    except InvalidSessionError as e:
-        app.logger.error("Value missing in Redis session (%s) sn=%s, sid=%s", e, sn, sid)
-        return {"status": "error"}
-    if session_json["auth_type"] != auth_type:
+    if session["auth_type"] != auth_type:
         app.logger.debug("Authentication type does not match, sn=%s, sid=%s", sn, sid)
         return {"status": "fail"}
 
-    if session_json["digest"]:  # certificate creation in progress
-        if session_json["digest"] == digest:
-            app.logger.debug("Digest already saved for sn=%s, sid=%s", sn, sid)
-            return {
-                "status": "accepted",
-                "delay": DELAY_AUTH_AGAIN,
-            }
-        else:
-            app.logger.debug("Digest does not match the saved one sn=%s, sid=%s", sn, sid)
-            return {"status": "fail"}
-    else:  # start certificate creation (CA will check the digest first)
-        app.logger.debug("Saving digest for sn=%s, sid=%s", sn, sid)
-        session_json["digest"] = digest
-        pipe = r.pipeline(transaction=True)
-        pipe.delete(get_session_key(sn, sid))
-        pipe.setex(get_session_key(sn, sid),
-                   app.config["REDIS_SESSION_TIMEOUT"],
-                   json.dumps(session_json))
-        request = {
-            "sn": sn,
-            "sid": sid,
-            "nonce": session_json['nonce'],
-            "digest": digest,
-            "csr_str": session_json['csr_str'],
-            "flags": session_json["flags"],
-            "auth_type": auth_type,
-        }
-        pipe.lpush('csr', json.dumps(request))
-        pipe.execute()
+    if session["digest"]:  # certificate creation in progress
+        app.logger.debug("Digest already saved for sn=%s, sid=%s", sn, sid)
+        return {"status": "fail"}
+
+    # start certificate creation (CA will check the digest first)
+    app.logger.debug("Saving digest for sn=%s, sid=%s", sn, sid)
+    push_csr(sn, sid, session, digest, r)
 
     return {
         "status": "accepted",
