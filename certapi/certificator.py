@@ -175,7 +175,7 @@ def check_auth_state(auth_state):
             raise InvalidAuthStateError()
 
 
-def generate_nonce(sn, sid, csr_str, flags, auth_type, r):
+def create_auth_session(sn, sid, csr_str, flags, auth_type, r):
     """ Certificate with matching private key not found in redis
     """
     app.logger.debug("Starting authentication for sn=%s", sn)
@@ -247,7 +247,7 @@ def get_auth_state(sn, sid, r):
 def process_req_get(sn, sid, csr_str, flags, auth_type, r):
     app.logger.debug("Processing GET request, sn=%s, sid=%s", sn, sid)
     if "renew" in flags:  # when renew is flagged we ignore cert in redis
-        return generate_nonce(sn, sid, csr_str, flags, auth_type, r)
+        return create_auth_session(sn, sid, csr_str, flags, auth_type, r)
     authenticated = False
 
     # We care about authentication only when session exists
@@ -262,7 +262,7 @@ def process_req_get(sn, sid, csr_str, flags, auth_type, r):
             app.logger.warning("Auth OK but certificate not in redis, sn=%s", sn)
         else:
             app.logger.debug("Certificate not in redis, sn=%s", sn)
-        return generate_nonce(sn, sid, csr_str, flags, auth_type, r)
+        return create_auth_session(sn, sid, csr_str, flags, auth_type, r)
 
     app.logger.debug("Certificate found in redis, sn=%s", sn)
 
@@ -272,7 +272,7 @@ def process_req_get(sn, sid, csr_str, flags, auth_type, r):
             app.logger.warning("Auth OK but certificate key does not match, sn=%s", sn)
         else:
             app.logger.debug("Certificate key does not match, sn=%s", sn)
-        return generate_nonce(sn, sid, csr_str, flags, auth_type, r)
+        return create_auth_session(sn, sid, csr_str, flags, auth_type, r)
 
     app.logger.debug("Certificate restored from redis, sn=%s", sn)
     return {
