@@ -1,0 +1,6 @@
+# Python things...
+__pycache__
+*.egg-info/
+
+# Flask main configuration file
+/instance/local.cfg
