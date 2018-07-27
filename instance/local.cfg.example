@@ -1,0 +1,3 @@
+REDIS_HOST = "redis.example.org"
+REDIS_PASSWORD = "foobared"
+REDIS_SESSION_TIMEOUT = 5*60
