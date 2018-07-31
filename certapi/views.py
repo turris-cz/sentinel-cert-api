@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 import json
 
 import redis
@@ -7,7 +6,7 @@ from flask import jsonify
 from flask import g
 
 from certapi import app
-from certapi import certificator
+from certapi.authentication import process_request
 
 
 def get_redis():
@@ -29,6 +28,6 @@ def request_view():
     # request.data is class bytes
     req_json = request.get_json()  # class dict
     log_debug_json("Incomming connection", req_json)
-    reply = certificator.process_request(req_json, get_redis())
+    reply = process_request(req_json, get_redis())
     log_debug_json("Reply", reply)
     return jsonify(reply)
