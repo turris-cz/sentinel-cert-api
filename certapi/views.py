@@ -1,6 +1,8 @@
 import json
 
 import redis
+
+from flask import Blueprint
 from flask import request
 from flask import jsonify
 from flask import g
@@ -8,6 +10,9 @@ from flask import current_app
 
 from certapi import app
 from certapi.authentication import process_request
+
+
+apiv1 = Blueprint("apiv1", __name__)
 
 
 def get_redis():
@@ -24,7 +29,7 @@ def log_debug_json(msg, msg_json):
     current_app.logger.debug("%s:\n%s", msg, json.dumps(msg_json, indent=2))
 
 
-@app.route("/v1", methods=['POST'])
+@apiv1.route("", methods=['POST'])
 def request_view():
     # request.data is class bytes
     req_json = request.get_json()  # class dict
