@@ -2,7 +2,6 @@ import json
 
 from flask import current_app
 
-from certapi import app
 from certapi.crypto import create_random_sid, create_random_nonce, key_match
 from certapi.exceptions import InvalidAuthStateError, InvalidSessionError, InvalidParamError
 from certapi import validators
@@ -38,7 +37,7 @@ def create_auth_session(sn, sid, csr_str, flags, auth_type, r):
         "flags": flags,
     }
     r.setex(get_session_key(sn, sid),
-            app.config["REDIS_SESSION_TIMEOUT"],
+            current_app.config["REDIS_SESSION_TIMEOUT"],
             json.dumps(session))
     return {
         "status": "authenticate",
@@ -155,7 +154,7 @@ def push_csr(sn, sid, session, digest, r):
     pipe = r.pipeline(transaction=True)
     pipe.delete(get_session_key(sn, sid))
     pipe.setex(get_session_key(sn, sid),
-               app.config["REDIS_SESSION_TIMEOUT"],
+               current_app.config["REDIS_SESSION_TIMEOUT"],
                json.dumps(session))
     request = {
         "sn": sn,

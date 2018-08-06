@@ -8,7 +8,6 @@ from flask import jsonify
 from flask import g
 from flask import current_app
 
-from certapi import app
 from certapi.authentication import process_request
 
 
@@ -18,9 +17,9 @@ apiv1 = Blueprint("apiv1", __name__)
 def get_redis():
     r = g.get('redis', None)
     if r is None:
-        r = g.redis = redis.StrictRedis(host=app.config["REDIS_HOST"],
-                                        port=app.config["REDIS_PORT"],
-                                        password=app.config["REDIS_PASSWORD"],
+        r = g.redis = redis.StrictRedis(host=current_app.config["REDIS_HOST"],
+                                        port=current_app.config["REDIS_PORT"],
+                                        password=current_app.config["REDIS_PASSWORD"],
                                         db=0)
     return r
 
