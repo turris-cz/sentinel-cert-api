@@ -23,7 +23,9 @@ def create_app(additional_config=None):
 
     setup_logging()
 
+    from .pages import pages
     from .apiv1 import apiv1
+    app.register_blueprint(pages)
     app.register_blueprint(apiv1, url_prefix="/v1")
 
     return app
