@@ -7,6 +7,7 @@ from flask import request
 from flask import jsonify
 from flask import g
 from flask import current_app
+from flask import redirect, url_for
 
 from .authentication import process_request
 
@@ -36,3 +37,8 @@ def auth_request():
     reply = process_request(req_json, get_redis())
     log_debug_json("Reply", reply)
     return jsonify(reply)
+
+
+@apiv1.route("", methods=['GET'])
+def redirect_humans():
+    return redirect(url_for("pages.home"))
