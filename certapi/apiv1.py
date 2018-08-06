@@ -29,7 +29,7 @@ def log_debug_json(msg, msg_json):
 
 
 @apiv1.route("", methods=['POST'])
-def request_view():
+def auth_request():
     # request.data is class bytes
     req_json = request.get_json()  # class dict
     log_debug_json("Incomming connection", req_json)
