@@ -4,6 +4,7 @@ import redis
 from flask import request
 from flask import jsonify
 from flask import g
+from flask import current_app
 
 from certapi import app
 from certapi.authentication import process_request
@@ -20,7 +21,7 @@ def get_redis():
 
 
 def log_debug_json(msg, msg_json):
-    app.logger.debug("%s:\n%s", msg, json.dumps(msg_json, indent=2))
+    current_app.logger.debug("%s:\n%s", msg, json.dumps(msg_json, indent=2))
 
 
 @app.route("/v1", methods=['POST'])
