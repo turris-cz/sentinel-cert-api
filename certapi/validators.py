@@ -1,5 +1,5 @@
-from certapi.crypto import AVAIL_HASHES, get_common_names, csr_from_str
-from certapi.exceptions import InvalidParamError, InvalidAuthStateError, InvalidSessionError
+from .crypto import AVAIL_HASHES, get_common_names, csr_from_str
+from .exceptions import InvalidParamError, InvalidAuthStateError, InvalidSessionError
 
 AVAIL_REQUEST_TYPES = {"get_cert", "auth"}
 AVAIL_FLAGS = {"renew"}

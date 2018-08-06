@@ -8,7 +8,7 @@ from flask import jsonify
 from flask import g
 from flask import current_app
 
-from certapi.authentication import process_request
+from .authentication import process_request
 
 
 apiv1 = Blueprint("apiv1", __name__)

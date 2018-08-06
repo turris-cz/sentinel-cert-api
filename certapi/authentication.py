@@ -4,7 +4,7 @@ from flask import current_app
 
 from certapi.crypto import create_random_sid, create_random_nonce, key_match
 from certapi.exceptions import InvalidAuthStateError, InvalidSessionError, InvalidParamError
-from certapi import validators
+from . import validators
 
 DELAY_GET_SESSION_EXISTS = 10
 DELAY_AUTH = 10

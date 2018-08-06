@@ -4,7 +4,7 @@ from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import hashes
 from cryptography import x509
 
-from certapi.exceptions import InvalidParamError
+from .exceptions import InvalidParamError
 
 AVAIL_HASHES = {
     "sha224",
