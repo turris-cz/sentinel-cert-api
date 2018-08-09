@@ -1,3 +1,4 @@
+import json
 import pytest
 from certapi import create_app
 from unittest.mock import Mock, patch
@@ -252,6 +253,136 @@ def bad_cert(request):
 
 @pytest.fixture(params=zip(good_reqs_get_cert, good_certs))
 def good_data(request):
+    return request.param
+
+
+good_reqs_auth = [
+    {
+        "auth_type": "atsha204",
+        "sn": "0000000A000001F3",
+        "type": "auth",
+        "sid": "4cca5561cf766855a02ee33f229acf4b144fdb7988abd85fd2bad3cfe2546d9f",
+        "digest": "D9C57EF288673CBC6EBAF6990991C58294521AA46E4FF5A2F49D3326F53E10C0"
+    },
+    {
+        "type": "auth",
+        "digest": "8B3DCBE95B151390F0F33AA453D486D748CD836693B46602200565898EB7C3BA",
+        "sid": "aea13dbed3b576cc8300d4710bdc708e6baff00f2e485ad2d9614fdc378fd4e0",
+        "auth_type": "atsha204",
+        "sn": "0000000A000001F3"
+    },
+]
+
+
+@pytest.fixture(params=[
+    {  # bad auth_type
+        "auth_type": "atsha",
+        "sn": "0000000A000001F3",
+        "type": "auth",
+        "sid": "4cca5561cf766855a02ee33f229acf4b144fdb7988abd85fd2bad3cfe2546d9f",
+        "digest": "D9C57EF288673CBC6EBAF6990991C58294521AA46E4FF5A2F49D3326F53E10C0"
+    },
+    {  # bad sn
+        "auth_type": "atsha204",
+        "sn": "0000000A000001F4",
+        "type": "auth",
+        "sid": "4cca5561cf766855a02ee33f229acf4b144fdb7988abd85fd2bad3cfe2546d9f",
+        "digest": "D9C57EF288673CBC6EBAF6990991C58294521AA46E4FF5A2F49D3326F53E10C0"
+    },
+    {  # bad type
+        "auth_type": "atsha204",
+        "sn": "0000000A000001F3",
+        "type": "authenticate",
+        "sid": "4cca5561cf766855a02ee33f229acf4b144fdb7988abd85fd2bad3cfe2546d9f",
+        "digest": "D9C57EF288673CBC6EBAF6990991C58294521AA46E4FF5A2F49D3326F53E10C0"
+    },
+    {  # bad sid (short)
+        "auth_type": "atsha204",
+        "sn": "0000000A000001F3",
+        "type": "auth",
+        "sid": "4cca5561cf766855a02ee33f229acf4b144fdb7988abd85fd2bad3cfe2546d",
+        "digest": "D9C57EF288673CBC6EBAF6990991C58294521AA46E4FF5A2F49D3326F53E10C0"
+    },
+    {  # bad digest (non hexa character)
+        "auth_type": "atsha204",
+        "sn": "0000000A000001F3",
+        "type": "auth",
+        "sid": "4cca5561cf766855a02ee33f229acf4b144fdb7988abd85fd2bad3cfe2546d9f",
+        "digest": "X9C57EF288673CBC6EBAF6990991C58294521AA46E4FF5A2F49D3326F53E10C0"
+    },
+])
+def bad_req_auth(request):
+    return request.param
+
+
+good_sessions = [
+    {
+        "nonce": "665e12e4db0c1c74a24457327c0456e52b026440766d7bb5da58061bdf58160a",
+        "auth_type": "atsha204",
+        "csr_str": "-----BEGIN CERTIFICATE REQUEST-----MIHnMIGOAgEAMBsxGTAXBgN\n"
+        "VBAMMEDAwMDAwMDBBMDAwMDAxRjMwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAASCLeKI\n"
+        "XMOsIdxYndnySeHcwv+EvJvp6RiXPd2gY/pzkfNBVFzudGJ8tKWo4JPG1U66Crh5Ggqax\n"
+        "GoWUPBdw8+BoBEwDwYJKoZIhvcNAQkOMQIwADAKBggqhkjOPQQDAgNIADBFAiB4Me5+cf\n"
+        "wup0tMMeQM/xrHgBYylaTT6ngfGZQpsrmpBAIhAIhxE9+bzUoBDYFRTFHq4lzD/mzCb3s\n"
+        "/lFwJy694PqA0-----END CERTIFICATE REQUEST-----",
+        "flags": [],
+        "digest": ""
+    },
+    {
+        "flags": [],
+        "digest": "",
+        "nonce": "edd22df680f82d1ed1264a93b4f81ddd735aba22b8a99989b087abb2ea4ca3f0",
+        "auth_type": "atsha204",
+        "csr_str": "-----BEGIN CERTIFICATE REQUEST-----MIHmMIGOAgEAMBsxGTAXBgN\n"
+        "VBAMMEDAwMDAwMDBBMDAwMDAxRjMwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAAQGpZBc\n"
+        "M/iDdl4+m+fW3NnIOf3epwWZjJQqQY8R0b6+cm9eSHpqIlI6zjUCzBD1jC1BsewZ25Dy7\n"
+        "nQMGOmvwrTYoBEwDwYJKoZIhvcNAQkOMQIwADAKBggqhkjOPQQDAgNHADBEAiBN20doyA\n"
+        "17mcy4thRY61WY8njlY6jGTV05olYg6lJlDgIgM7DGv4yRLoj7HZkkKJmXDZ+w2PdKLp2\n"
+        "za8Si7xiC+zs=-----END CERTIFICATE REQUEST-----"
+    }
+]
+
+
+@pytest.fixture(params=[
+    "x",
+    # "", # TODO: improve cert-api to this could be added to tests
+    {  # missing flags
+        "digest": "",
+        "nonce": "edd22df680f82d1ed1264a93b4f81ddd735aba22b8a99989b087abb2ea4ca3f0",
+        "auth_type": "atsha204",
+        "csr_str": "-----BEGIN CERTIFICATE REQUEST-----MIHmMIGOAgEAMBsxGTAXBgN\n"
+        "VBAMMEDAwMDAwMDBBMDAwMDAxRjMwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAAQGpZBc\n"
+        "M/iDdl4+m+fW3NnIOf3epwWZjJQqQY8R0b6+cm9eSHpqIlI6zjUCzBD1jC1BsewZ25Dy7\n"
+        "nQMGOmvwrTYoBEwDwYJKoZIhvcNAQkOMQIwADAKBggqhkjOPQQDAgNHADBEAiBN20doyA\n"
+        "17mcy4thRY61WY8njlY6jGTV05olYg6lJlDgIgM7DGv4yRLoj7HZkkKJmXDZ+w2PdKLp2\n"
+        "za8Si7xiC+zs=-----END CERTIFICATE REQUEST-----"
+    },
+    {  # missing csr
+        "flags": [],
+        "digest": "",
+        "nonce": "edd22df680f82d1ed1264a93b4f81ddd735aba22b8a99989b087abb2ea4ca3f0",
+        "auth_type": "atsha204",
+    },
+
+    # {  # invalid nonce  TODO: improve cert-api to this could be added to tests
+    #     "flags": [],
+    #     "digest": "",
+    #     "nonce": "XXd22df680f82d1ed1264a93b4f81ddd735aba22b8a99989b087abb2ea4ca3f0",
+    #     "auth_type": "atsha204",
+    #     "csr_str": "-----BEGIN CERTIFICATE REQUEST-----MIHmMIGOAgEAMBsxGTAXBgN\n"
+    #     "VBAMMEDAwMDAwMDBBMDAwMDAxRjMwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAAQGpZBc\n"
+    #     "M/iDdl4+m+fW3NnIOf3epwWZjJQqQY8R0b6+cm9eSHpqIlI6zjUCzBD1jC1BsewZ25Dy7\n"
+    #     "nQMGOmvwrTYoBEwDwYJKoZIhvcNAQkOMQIwADAKBggqhkjOPQQDAgNHADBEAiBN20doyA\n"
+    #     "17mcy4thRY61WY8njlY6jGTV05olYg6lJlDgIgM7DGv4yRLoj7HZkkKJmXDZ+w2PdKLp2\n"
+    #     "za8Si7xiC+zs=-----END CERTIFICATE REQUEST-----"
+    # },
+])
+def bad_session(request):
+    return request.param
+
+
+@pytest.fixture(params=zip(good_reqs_auth, good_sessions))
+def good_req_auth_data(request):
     return request.param
 
 
