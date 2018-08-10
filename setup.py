@@ -12,5 +12,12 @@ setup(
         "flask",
         "cryptography",
         "redis",
-    ]
+    ],
+    extras_require={
+        "tests": [
+            "pytest",
+            "coverage",
+            "pytest-cov",
+        ],
+    }
 )
