@@ -1,0 +1,27 @@
+image: registry.labs.nic.cz/turris/sentinel/sn
+
+stages:
+  - test
+  - coverage_report
+
+before_script:
+  - pip3 install .
+  - pip3 install .[tests]
+
+run_tests:
+  stage: test
+  script:
+    - pytest -v tests
+
+coverage_report:
+  stage: coverage_report
+  script:
+    - rm -rf public
+    - mkdir public
+    - pytest --cov=certapi -v tests
+    - coverage html --directory public
+  artifacts:
+    when: on_success
+    paths:
+      - public
+  coverage: '/^TOTAL.* (\d+)%$/'
