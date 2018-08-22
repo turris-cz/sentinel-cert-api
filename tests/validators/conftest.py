@@ -135,11 +135,11 @@ def bad_sid(request):
 
 @pytest.fixture(params=[
     {
-        "auth_type",
-        "nonce",
-        "digest",
-        "csr_str",
-        "flags",
+        "auth_type": "",
+        "nonce": "",
+        "digest": "",
+        "csr_str": "",
+        "flags": "",
     }
 ])
 def good_sessions(request):
@@ -174,12 +174,10 @@ def bad_sessions(request):
 
 
 @pytest.fixture(params=[
-    (
-        "status",
-    ),
-    (
-        "status",
-    )
+    {
+        "status": "ok",
+        "message": None,
+    },
 ])
 def good_auth_state(request):
     return request.param

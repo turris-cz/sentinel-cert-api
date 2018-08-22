@@ -2,13 +2,29 @@ class CertAPIError(Exception):
     pass
 
 
-class InvalidParamError(CertAPIError):
+class CertAPIClientError(CertAPIError):
     pass
 
 
-class InvalidSessionError(CertAPIError):
+class ClientDataError(CertAPIClientError):
     pass
 
 
-class InvalidAuthStateError(CertAPIError):
+class ClientAuthError(CertAPIClientError):
+    pass
+
+
+class InvalidParamError(ClientDataError):
+    pass
+
+
+class CertAPISystemError(CertAPIError):
+    pass
+
+
+class InvalidSessionError(CertAPISystemError):
+    pass
+
+
+class InvalidAuthStateError(CertAPISystemError):
     pass

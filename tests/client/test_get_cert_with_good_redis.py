@@ -84,8 +84,8 @@ def test_good_sid_set_auth_in_progress(client, good_data, redis_mock):
 
 def test_good_sid_set_auth_failed(client, good_data, redis_mock):
     redis_mock().exists.return_value = True  # Session exists
-    redis_mock().get.return_value = b'{"status": "failed"}'  # Auth failed
-    #  Now the client gets response "failed"
+    redis_mock().get.return_value = b'{"status": "fail", "message": "fail"}'  # Auth failed
+    #  Now the client gets response "fail"
 
     rv = client.post("/v1", json=good_data[0])
     assert redis_mock().exists.call_count == 1  # Session exists?
@@ -94,13 +94,13 @@ def test_good_sid_set_auth_failed(client, good_data, redis_mock):
 
     assert rv.status_code == 200
     resp_data = rv.get_json()
-    assert resp_data["status"] == "auth_failed"
+    assert resp_data["status"] == "fail"
 
 
 def test_good_sid_set_auth_ok_cert_missing(client, good_data, redis_mock):
     def redis_get(key):
         if "auth_state:{}:".format(good_data[0]["sn"]) in key:
-            return b'{"status": "ok"}'
+            return b'{"status": "ok", "message": null}'
         if key == "certificate:{}".format(good_data[0]["sn"]):
             return None
         assert False
@@ -124,7 +124,7 @@ def test_good_sid_set_auth_ok_cert_missing(client, good_data, redis_mock):
 def test_good_sid_set_auth_ok_cert_ok(client, good_data, redis_mock):
     def redis_get(key):
         if "auth_state:{}:".format(good_data[0]["sn"]) in key:
-            return b'{"status": "ok"}'
+            return b'{"status": "ok", "message": null}'
         if key == "certificate:{}".format(good_data[0]["sn"]):
             return good_data[1].encode("utf-8")
         assert False

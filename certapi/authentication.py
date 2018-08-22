@@ -1,10 +1,19 @@
+"""
+Note on logging:
+    - ClientDataError and ClientAuthError should be logged on it's first
+      occurence with levels
+      'debug', 'info' and 'warning' for most severe cases
+    - CertAPISystemError should be logged centrally in one place with levels
+      'error' for most cases and 'critical' when the application needs to stop
+"""
 import json
 
 from flask import current_app
 
-from certapi.crypto import create_random_sid, create_random_nonce, key_match
-from certapi.exceptions import InvalidAuthStateError, InvalidSessionError, InvalidParamError
-from . import validators
+from .crypto import create_random_sid, create_random_nonce, key_match
+from .exceptions import ClientDataError, ClientAuthError, CertAPISystemError, \
+                        InvalidSessionError, InvalidAuthStateError
+from .validators import check_request, check_auth_state, check_session
 
 DELAY_GET_SESSION_EXISTS = 10
 DELAY_AUTH = 10
@@ -43,44 +52,25 @@ def create_auth_session(sn, sid, csr_str, flags, auth_type, r):
         "status": "authenticate",
         "sid": sid,
         "nonce": nonce,
+        "message": "Authenticate yourself by sending digest and auth_type in 'auth' request"
     }
 
 
 def get_auth_state(sn, sid, r):
-    """ Get state of client authentication from Redis. If the state is failed
+    """ Get state of client authentication from Redis. If the state is fail
     or missing, return fail info.
     """
     auth_state = r.get(get_auth_state_key(sn, sid))
     if not auth_state:
-        current_app.logger.debug("Certificate creation in progress, sn=%s, sid=%s", sn, sid)
-        status = {
-            "status": "wait",
-            "delay": DELAY_GET_SESSION_EXISTS
-        }
-        return (False, status)
+        return None
 
     try:
         auth_state = json.loads(auth_state.decode("utf-8"))
-    except UnicodeDecodeError:
-        current_app.logger.error("UnicodeDecodeError for auth_state sn=%s, sid=%s", sn, sid)
-        return (False, {"status": "error"})
-    except json.decoder.JSONDecodeError:
-        current_app.logger.error("JSONDecodeError for auth_state sn=%s, sid=%s", sn, sid)
-        return (False, {"status": "error"})
+        check_auth_state(auth_state)
+    except (UnicodeDecodeError, json.decoder.JSONDecodeError, InvalidAuthStateError) as e:
+        raise CertAPISystemError("{} for auth_state sn={}, sid={}".format(e, sn, sid))
 
-    try:
-        validators.check_auth_state(auth_state)
-    except InvalidAuthStateError:
-        current_app.logger.error("Auth state ivalid for sn=%s, sid=%s", sn, sid)
-        return (False, {"status": "error"})
-
-    if auth_state["status"] == "ok":
-        return (True, None)
-    elif auth_state["status"] == "failed":
-        return (False, {"status": "auth_failed"})
-    else:
-        current_app.logger.error("auth_state invalid value in session sn=%s, sid=%s", sn, sid)
-        return (False, {"status": "error"})
+    return auth_state
 
 
 def process_req_get(sn, sid, csr_str, flags, auth_type, r):
@@ -91,9 +81,23 @@ def process_req_get(sn, sid, csr_str, flags, auth_type, r):
 
     # We care about authentication only when session exists
     if r.exists(get_session_key(sn, sid)):
-        (authenticated, status) = get_auth_state(sn, sid, r)
-        if not authenticated:
-            return status
+        auth_state = get_auth_state(sn, sid, r)
+        if not auth_state:
+            reply = {
+                "status": "wait",
+                "delay": DELAY_GET_SESSION_EXISTS,
+                "message": "Certification process still running, wait for"
+                           "{} sec before sending another 'get_cert' request".format(DELAY_GET_SESSION_EXISTS),
+            }
+            return reply
+        if auth_state["status"] == "error":
+            raise CertAPISystemError("error status for auth_state sn={}, sid={},"
+                                     " (message={})".format(sn, sid, auth_state["message"]))
+        if auth_state["status"] == "fail":
+            current_app.logger.debug("fail status for auth_state sn=%s, sid=%s,"
+                                     " (message=%s)", sn, sid, auth_state["message"])
+            raise ClientAuthError(auth_state["message"])
+        authenticated = True
 
     cert_bytes = r.get(get_cert_key(sn))
     if not cert_bytes:
@@ -116,7 +120,8 @@ def process_req_get(sn, sid, csr_str, flags, auth_type, r):
     current_app.logger.debug("Certificate restored from redis, sn=%s", sn)
     return {
         "status": "ok",
-        "cert": cert_bytes.decode("utf-8")
+        "cert": cert_bytes.decode("utf-8"),
+        "message": "Authentication succesfull, new cert created",
     }
 
 
@@ -127,24 +132,15 @@ def get_auth_session(sn, sid, r):
     session_json = r.get(get_session_key(sn, sid))
     if not session_json:  # authentication session open / certificate creation in progress
         current_app.logger.debug("Authentication session not found, sn=%s, sid=%s", sn, sid)
-        return (None, {"status": "fail"})
+        raise ClientAuthError("Auth session not found. Did you send 'get_cert' request?")
 
     try:
         session = json.loads(session_json.decode("utf-8"))
-    except UnicodeDecodeError:
-        current_app.logger.error("UnicodeDecodeError for session sn=%s, sid=%s", sn, sid)
-        return (None, {"status": "error"})
-    except json.decoder.JSONDecodeError:
-        current_app.logger.error("JSONDecodeError for session sn=%s, sid=%s", sn, sid)
-        return (None, {"status": "error"})
+        check_session(session)
+    except (UnicodeDecodeError, json.decoder.JSONDecodeError, InvalidSessionError) as e:
+        raise CertAPISystemError("{} for sn={}, sid={}".format(e, sn, sid))
 
-    try:
-        validators.check_session(session)
-    except InvalidSessionError as e:
-        current_app.logger.error("Value missing in Redis session (%s) sn=%s, sid=%s", e, sn, sid)
-        return (None, {"status": "error"})
-
-    return (session, None)
+    return session
 
 
 def push_csr(sn, sid, session, digest, r):
@@ -172,18 +168,16 @@ def push_csr(sn, sid, session, digest, r):
 def process_req_auth(sn, sid, digest, auth_type, r):
     current_app.logger.debug("Processing AUTH request, sn=%s, sid=%s", sn, sid)
 
-    (session, status) = get_auth_session(sn, sid, r)
-    if not session:
-        return status
+    session = get_auth_session(sn, sid, r)
 
     current_app.logger.debug("Authentication session found open for sn=%s, sid=%s", sn, sid)
     if session["auth_type"] != auth_type:
         current_app.logger.debug("Authentication type does not match, sn=%s, sid=%s", sn, sid)
-        return {"status": "fail"}
+        raise ClientAuthError("Auth type does not match the original one")
 
     if session["digest"]:  # certificate creation in progress
         current_app.logger.debug("Digest already saved for sn=%s, sid=%s", sn, sid)
-        return {"status": "fail"}
+        raise ClientAuthError("Digest already saved")
 
     # start certificate creation (CA will check the digest first)
     current_app.logger.debug("Saving digest for sn=%s, sid=%s", sn, sid)
@@ -192,51 +186,35 @@ def process_req_auth(sn, sid, digest, auth_type, r):
     return {
         "status": "accepted",
         "delay": DELAY_AUTH,
+        "message": "Certification process started, wait for {} sec before"
+                   " sending next 'get_cert' request".format(DELAY_AUTH)
     }
 
 
-def process_request(req_json, r):
-    if type(req_json) is not dict:
-        current_app.logger.warning("Request failure: not a valid json")
-        return {"status": "error"}
+def build_reply(status, msg=""):
+    return {"status": status, "message": msg}
+
+
+def process_request(req, r):
     try:
-        validators.validate_req_type(req_json["type"])
-        validators.validate_auth_type(req_json["auth_type"])
-        validators.validate_sn = validators.sn_validators[req_json["auth_type"]]
-        validators.validate_sn(req_json["sn"])
-        validators.validate_sid(req_json["sid"])
-
-        if req_json["type"] == "get_cert":
-            validators.validate_csr(req_json["csr"], req_json["sn"])
-            validators.validate_flags(req_json["flags"])
-        elif req_json["type"] == "auth":
-            validators.validate_digest(req_json["digest"])
-
-    except KeyError as e:
-        current_app.logger.warning("Request failure: parameter missing: %s", e)
-        return {"status": "error"}
-    except InvalidParamError as e:
-        current_app.logger.warning("Request failure: %s", e)
-        return {"status": "error"}
-
-    if req_json["type"] == "get_cert":
-        # renew flag may be sent only before the auth session starts
-        if "renew" in req_json["flags"]:
-            if req_json["sid"]:
-                return {"status": "fail"}
-
-        reply = process_req_get(req_json["sn"],
-                                req_json["sid"],
-                                req_json["csr"],
-                                req_json["flags"],
-                                req_json["auth_type"],
-                                r)
-        return reply
-
-    elif req_json["type"] == "auth":
-        reply = process_req_auth(req_json["sn"],
-                                 req_json["sid"],
-                                 req_json["digest"],
-                                 req_json["auth_type"],
-                                 r)
-        return reply
+        check_request(req)
+        if req["type"] == "get_cert":
+            return process_req_get(req["sn"],
+                                   req["sid"],
+                                   req["csr"],
+                                   req["flags"],
+                                   req["auth_type"],
+                                   r)
+        elif req["type"] == "auth":
+            return process_req_auth(req["sn"],
+                                    req["sid"],
+                                    req["digest"],
+                                    req["auth_type"],
+                                    r)
+    except ClientAuthError as e:
+        return build_reply("fail", str(e))
+    except ClientDataError as e:
+        return build_reply("error", str(e))
+    except CertAPISystemError as e:
+        current_app.logger.error(str(e))
+        return build_reply("error", "Sentinel error. Please, restart the process")

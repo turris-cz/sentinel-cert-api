@@ -1,8 +1,9 @@
 from .crypto import AVAIL_HASHES, get_common_names, csr_from_str
-from .exceptions import InvalidParamError, InvalidAuthStateError, InvalidSessionError
+from .exceptions import InvalidParamError, InvalidAuthStateError, InvalidSessionError, ClientDataError
 
 AVAIL_REQUEST_TYPES = {"get_cert", "auth"}
 AVAIL_FLAGS = {"renew"}
+AVAIL_STATES = {"ok", "fail", "error"}
 
 SESSION_PARAMS = {
     "auth_type",
@@ -13,6 +14,20 @@ SESSION_PARAMS = {
 }
 AUTH_STATE_PARAMS = {
     "status",
+    "message",
+}
+GENERAL_REQ_PARAMS = {
+    "type",
+    "auth_type",
+    "sid",
+    "sn",
+}
+GET_CERT_REQ_PARAMS = {
+    "csr",
+    "flags",
+}
+AUTH_REQ_PARAMS = {
+    "digest",
 }
 
 
@@ -99,14 +114,49 @@ def validate_auth_type(auth_type):
 
 
 def check_session(session):
+    if type(session) is not dict:
+        raise InvalidSessionError("Must be a dict!")
     for param in SESSION_PARAMS:
         if param not in session:
-            raise InvalidSessionError(param)
+            raise InvalidSessionError("{} missing in session".format(param))
 
 
 def check_auth_state(auth_state):
-    if len(auth_state) != len(AUTH_STATE_PARAMS):
-        raise InvalidAuthStateError()
-    for param in auth_state:
-        if param not in AUTH_STATE_PARAMS:
-            raise InvalidAuthStateError()
+    for param in AUTH_STATE_PARAMS:
+        if param not in auth_state:
+            raise InvalidAuthStateError("{} missing in auth_state".format(param))
+    if auth_state["status"] not in AVAIL_STATES:
+        raise InvalidAuthStateError("Invalid status ({}) in auth_state".format(auth_state["status"]))
+
+
+def check_params_exist(req, params):
+    for param in GENERAL_REQ_PARAMS:
+        if param not in req:
+            raise ClientDataError("'{}' is missing in the request".format(param))
+
+
+def check_request(req):
+    if type(req) is not dict:
+        raise ClientDataError("Request not a valid JSON with correct content type")
+    check_params_exist(req, GENERAL_REQ_PARAMS)
+    validate_req_type(req["type"])
+    validate_auth_type(req["auth_type"])
+    validate_sn = sn_validators[req["auth_type"]]
+    validate_sn(req["sn"])
+    validate_sid(req["sid"])
+
+    if req["type"] == "get_cert":
+        if len(req) > (len(GENERAL_REQ_PARAMS) + len(GET_CERT_REQ_PARAMS)):
+            raise ClientDataError("Too much parameters in request")
+        check_params_exist(req, AUTH_REQ_PARAMS)
+        validate_csr(req["csr"], req["sn"])
+        validate_flags(req["flags"])
+
+        if "renew" in req["flags"] and req["sid"]:
+            raise InvalidParamError("Renew allowed only in the first request")
+
+    elif req["type"] == "auth":
+        if len(req) > (len(GENERAL_REQ_PARAMS) + len(AUTH_REQ_PARAMS)):
+            raise ClientDataError("Too much parameters in request")
+        check_params_exist(req, GET_CERT_REQ_PARAMS)
+        validate_digest(req["digest"])
