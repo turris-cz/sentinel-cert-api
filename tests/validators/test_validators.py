@@ -84,9 +84,9 @@ def test_invalid_session(bad_sessions):
 
 
 def test_valid_auth_state(good_auth_state):
-    v.check_auth_state(good_auth_state)
+    v.validate_auth_state(good_auth_state)
 
 
 def test_invalid_auth_state(bad_auth_state):
     with pytest.raises(ex.InvalidAuthStateError):
-        v.check_auth_state(bad_auth_state)
+        v.validate_auth_state(bad_auth_state)

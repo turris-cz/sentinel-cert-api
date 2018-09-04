@@ -12,12 +12,30 @@ from flask import current_app
 
 from .crypto import create_random_sid, create_random_nonce, key_match
 from .exceptions import ClientDataError, ClientAuthError, CertAPISystemError, \
-                        InvalidSessionError, InvalidAuthStateError
-from .validators import check_request, check_auth_state, check_session
+                        InvalidSessionError, InvalidAuthStateError, \
+                        AuthStateMissing
+from .validators import check_request, validate_auth_state, check_session
 
 DELAY_GET_SESSION_EXISTS = 10
 DELAY_AUTH = 10
 DELAY_AUTH_AGAIN = 10
+
+
+message_req_get_wait = {
+    "status": "wait",
+    "delay": DELAY_GET_SESSION_EXISTS,
+    "message": "Certification process still running, wait for"
+               "{} sec before sending another 'get_cert' "
+               "request".format(DELAY_GET_SESSION_EXISTS),
+}
+
+
+def message_req_get_ok(cert_bytes):
+    return {
+        "status": "ok",
+        "cert": cert_bytes.decode("utf-8"),
+        "message": "Authentication succesfull, new cert created",
+    }
 
 
 def get_session_key(sn, sid):
@@ -56,21 +74,27 @@ def create_auth_session(sn, sid, csr_str, flags, auth_type, r):
     }
 
 
-def get_auth_state(sn, sid, r):
-    """ Get state of client authentication from Redis. If the state is fail
-    or missing, return fail info.
+def check_auth_state(sn, sid, r):
+    """ Get state of client authentication from Redis. If the state is broken,
+    fail, error or missing raise an exception. If everything is OK, do nothing
     """
     auth_state = r.get(get_auth_state_key(sn, sid))
     if not auth_state:
-        return None
+        raise AuthStateMissing()
 
     try:
         auth_state = json.loads(auth_state.decode("utf-8"))
-        check_auth_state(auth_state)
+        validate_auth_state(auth_state)
     except (UnicodeDecodeError, json.decoder.JSONDecodeError, InvalidAuthStateError) as e:
         raise CertAPISystemError("{} for auth_state sn={}, sid={}".format(e, sn, sid))
 
-    return auth_state
+    if auth_state["status"] == "error":
+        raise CertAPISystemError("error status for auth_state sn={}, sid={},"
+                                 " (message={})".format(sn, sid, auth_state["message"]))
+    if auth_state["status"] == "fail":
+        current_app.logger.debug("fail status for auth_state sn=%s, sid=%s,"
+                                 " (message=%s)", sn, sid, auth_state["message"])
+        raise ClientAuthError(auth_state["message"])
 
 
 def process_req_get(sn, sid, csr_str, flags, auth_type, r):
@@ -81,22 +105,10 @@ def process_req_get(sn, sid, csr_str, flags, auth_type, r):
 
     # We care about authentication only when session exists
     if r.exists(get_session_key(sn, sid)):
-        auth_state = get_auth_state(sn, sid, r)
-        if not auth_state:
-            reply = {
-                "status": "wait",
-                "delay": DELAY_GET_SESSION_EXISTS,
-                "message": "Certification process still running, wait for"
-                           "{} sec before sending another 'get_cert' request".format(DELAY_GET_SESSION_EXISTS),
-            }
-            return reply
-        if auth_state["status"] == "error":
-            raise CertAPISystemError("error status for auth_state sn={}, sid={},"
-                                     " (message={})".format(sn, sid, auth_state["message"]))
-        if auth_state["status"] == "fail":
-            current_app.logger.debug("fail status for auth_state sn=%s, sid=%s,"
-                                     " (message=%s)", sn, sid, auth_state["message"])
-            raise ClientAuthError(auth_state["message"])
+        try:
+            check_auth_state(sn, sid, r)
+        except AuthStateMissing:
+            return message_req_get_wait
         authenticated = True
 
     cert_bytes = r.get(get_cert_key(sn))
@@ -118,11 +130,7 @@ def process_req_get(sn, sid, csr_str, flags, auth_type, r):
         return create_auth_session(sn, sid, csr_str, flags, auth_type, r)
 
     current_app.logger.debug("Certificate restored from redis, sn=%s", sn)
-    return {
-        "status": "ok",
-        "cert": cert_bytes.decode("utf-8"),
-        "message": "Authentication succesfull, new cert created",
-    }
+    return message_req_get_ok(cert_bytes)
 
 
 def get_auth_session(sn, sid, r):

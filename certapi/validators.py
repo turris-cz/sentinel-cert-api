@@ -121,12 +121,14 @@ def check_session(session):
             raise InvalidSessionError("{} missing in session".format(param))
 
 
-def check_auth_state(auth_state):
+def validate_auth_state(auth_state):
+    if type(auth_state) is not dict:
+        raise InvalidAuthStateError("Must be a dict!")
     for param in AUTH_STATE_PARAMS:
         if param not in auth_state:
-            raise InvalidAuthStateError("{} missing in auth_state".format(param))
+            raise InvalidAuthStateError("Parameter {} missing".format(param))
     if auth_state["status"] not in AVAIL_STATES:
-        raise InvalidAuthStateError("Invalid status ({}) in auth_state".format(auth_state["status"]))
+        raise InvalidAuthStateError("Invalid status '{}'".format(auth_state["status"]))
 
 
 def check_params_exist(req, params):

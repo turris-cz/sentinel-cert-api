@@ -28,3 +28,7 @@ class InvalidSessionError(CertAPISystemError):
 
 class InvalidAuthStateError(CertAPISystemError):
     pass
+
+
+class AuthStateMissing(Exception):
+    pass
