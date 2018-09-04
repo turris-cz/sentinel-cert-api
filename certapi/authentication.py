@@ -21,21 +21,35 @@ DELAY_AUTH = 10
 DELAY_AUTH_AGAIN = 10
 
 
-message_req_get_wait = {
-    "status": "wait",
-    "delay": DELAY_GET_SESSION_EXISTS,
-    "message": "Certification process still running, wait for"
-               "{} sec before sending another 'get_cert' "
-               "request".format(DELAY_GET_SESSION_EXISTS),
-}
+def build_reply_auth_accepted(delay=DELAY_AUTH):
+    return {
+        "status": "accepted",
+        "delay": delay,
+        "message": "Certification process started, wait for {} sec before"
+                   " sending next 'get_cert' request".format(delay),
+    }
 
 
-def message_req_get_ok(cert_bytes):
+def build_reply_get_wait(delay=DELAY_GET_SESSION_EXISTS):
+    return {
+        "status": "wait",
+        "delay": delay,
+        "message": "Certification process still running, wait for"
+                   " {} sec before sending another 'get_cert'"
+                   " request".format(delay),
+    }
+
+
+def build_reply_get_ok(cert_bytes):
     return {
         "status": "ok",
         "cert": cert_bytes.decode("utf-8"),
-        "message": "Authentication succesfull, new cert created",
+        "message": "Authentication succesful, requested certificate provided",
     }
+
+
+def build_reply(status, msg=""):
+    return {"status": status, "message": msg}
 
 
 def get_session_key(sn, sid):
@@ -108,7 +122,7 @@ def process_req_get(sn, sid, csr_str, flags, auth_type, r):
         try:
             check_auth_state(sn, sid, r)
         except AuthStateMissing:
-            return message_req_get_wait
+            return build_reply_get_wait()
         authenticated = True
 
     cert_bytes = r.get(get_cert_key(sn))
@@ -130,7 +144,7 @@ def process_req_get(sn, sid, csr_str, flags, auth_type, r):
         return create_auth_session(sn, sid, csr_str, flags, auth_type, r)
 
     current_app.logger.debug("Certificate restored from redis, sn=%s", sn)
-    return message_req_get_ok(cert_bytes)
+    return build_reply_get_ok(cert_bytes)
 
 
 def get_auth_session(sn, sid, r):
@@ -191,16 +205,7 @@ def process_req_auth(sn, sid, digest, auth_type, r):
     current_app.logger.debug("Saving digest for sn=%s, sid=%s", sn, sid)
     push_csr(sn, sid, session, digest, r)
 
-    return {
-        "status": "accepted",
-        "delay": DELAY_AUTH,
-        "message": "Certification process started, wait for {} sec before"
-                   " sending next 'get_cert' request".format(DELAY_AUTH)
-    }
-
-
-def build_reply(status, msg=""):
-    return {"status": status, "message": msg}
+    return build_reply_auth_accepted()
 
 
 def process_request(req, r):
