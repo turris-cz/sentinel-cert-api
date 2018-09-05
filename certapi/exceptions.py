@@ -2,19 +2,11 @@ class CertAPIError(Exception):
     pass
 
 
-class CertAPIClientError(CertAPIError):
+class RequestConsistencyError(CertAPIError):
     pass
 
 
-class ClientDataError(CertAPIClientError):
-    pass
-
-
-class ClientAuthError(CertAPIClientError):
-    pass
-
-
-class InvalidParamError(ClientDataError):
+class RequestProcessError(CertAPIError):
     pass
 
 
@@ -22,13 +14,5 @@ class CertAPISystemError(CertAPIError):
     pass
 
 
-class InvalidSessionError(CertAPISystemError):
-    pass
-
-
-class InvalidAuthStateError(CertAPISystemError):
-    pass
-
-
-class AuthStateMissing(Exception):
+class InvalidRedisDataError(CertAPISystemError):
     pass

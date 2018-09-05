@@ -4,7 +4,7 @@ from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import hashes
 from cryptography import x509
 
-from .exceptions import InvalidParamError
+from .exceptions import RequestConsistencyError
 
 AVAIL_HASHES = {
     "sha224",
@@ -27,7 +27,7 @@ def csr_from_str(csr_str):
                 backend=default_backend()
         )
     except (UnicodeEncodeError, ValueError):
-        raise InvalidParamError("Invalid CSR format")
+        raise RequestConsistencyError("Invalid CSR format")
 
     return csr
 

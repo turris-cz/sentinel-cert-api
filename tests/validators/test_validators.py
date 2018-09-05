@@ -10,7 +10,7 @@ def test_valid_sn_atsha(good_sn_atsha):
 
 
 def test_invalid_sn_atsha(bad_sn_atsha):
-    with pytest.raises(ex.InvalidParamError):
+    with pytest.raises(ex.RequestConsistencyError):
         v.validate_sn_atsha(bad_sn_atsha)
 
 
@@ -34,7 +34,7 @@ def test_valid_csr(good_csr, good_sn_atsha):
 
 
 def test_invalid_csr(bad_csr, bad_sn_atsha):
-    with pytest.raises(ex.InvalidParamError):
+    with pytest.raises(ex.RequestConsistencyError):
         v.validate_csr(bad_csr, bad_sn_atsha)
 
 
@@ -43,7 +43,7 @@ def test_valid_req_type(good_req_types):
 
 
 def test_invalid_req_type(bad_req_types):
-    with pytest.raises(ex.InvalidParamError):
+    with pytest.raises(ex.RequestConsistencyError):
         v.validate_req_type(bad_req_types)
 
 
@@ -52,7 +52,7 @@ def test_valid_flags(good_flags):
 
 
 def test_invalid_flags(bad_flags):
-    with pytest.raises(ex.InvalidParamError):
+    with pytest.raises(ex.RequestConsistencyError):
         v.validate_flags(bad_flags)
 
 
@@ -61,7 +61,7 @@ def test_valid_auth_type(good_auth_types):
 
 
 def test_invalid_auth_type(bad_auth_types):
-    with pytest.raises(ex.InvalidParamError):
+    with pytest.raises(ex.RequestConsistencyError):
         v.validate_auth_type(bad_auth_types)
 
 
@@ -70,7 +70,7 @@ def test_valid_sn(good_sid):
 
 
 def test_invalid_sn(bad_sid):
-    with pytest.raises(ex.InvalidParamError):
+    with pytest.raises(ex.RequestConsistencyError):
         v.validate_sid(bad_sid)
 
 
@@ -79,7 +79,7 @@ def test_valid_session(good_sessions):
 
 
 def test_invalid_session(bad_sessions):
-    with pytest.raises(ex.InvalidSessionError):
+    with pytest.raises(ex.InvalidRedisDataError):
         v.check_session(bad_sessions)
 
 
@@ -88,5 +88,5 @@ def test_valid_auth_state(good_auth_state):
 
 
 def test_invalid_auth_state(bad_auth_state):
-    with pytest.raises(ex.InvalidAuthStateError):
+    with pytest.raises(ex.InvalidRedisDataError):
         v.validate_auth_state(bad_auth_state)

@@ -17,7 +17,7 @@ def test_valid_csr_loading(good_pem_csr, good_public_numbers):
 
 
 def test_invalid_csr_loading(bad_pem_csr, good_public_numbers):
-    with pytest.raises(ex.InvalidParamError):
+    with pytest.raises(ex.RequestConsistencyError):
         c.csr_from_str(bad_pem_csr)
 
 
