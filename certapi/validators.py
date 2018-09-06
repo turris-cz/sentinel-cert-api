@@ -148,8 +148,6 @@ def check_request(req):
     validate_sid(req["sid"])
 
     if req["type"] == "get_cert":
-        if len(req) > (len(GENERAL_REQ_PARAMS) + len(GET_CERT_REQ_PARAMS)):
-            raise RequestConsistencyError("Too much parameters in request")
         check_params_exist(req, AUTH_REQ_PARAMS)
         validate_csr(req["csr"], req["sn"])
         validate_flags(req["flags"])
@@ -158,7 +156,5 @@ def check_request(req):
             raise RequestConsistencyError("Renew allowed only in the first request")
 
     elif req["type"] == "auth":
-        if len(req) > (len(GENERAL_REQ_PARAMS) + len(AUTH_REQ_PARAMS)):
-            raise RequestConsistencyError("Too much parameters in request")
         check_params_exist(req, GET_CERT_REQ_PARAMS)
         validate_digest(req["digest"])
