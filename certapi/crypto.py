@@ -21,7 +21,7 @@ def get_common_names(csr):
 def csr_from_str(csr_str):
     try:
         # construct x509 request from PEM string
-        csr_data = bytes(csr_str, encoding='utf-8')
+        csr_data = csr_str.encode("utf-8")
         csr = x509.load_pem_x509_csr(
                 data=csr_data,
                 backend=default_backend()
