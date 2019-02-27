@@ -132,7 +132,7 @@ def validate_auth_state(auth_state):
 
 
 def check_params_exist(req, params):
-    for param in GENERAL_REQ_PARAMS:
+    for param in params:
         if param not in req:
             raise RequestConsistencyError("'{}' is missing in the request".format(param))
 
@@ -148,7 +148,7 @@ def check_request(req):
     validate_sid(req["sid"])
 
     if req["type"] == "get_cert":
-        check_params_exist(req, AUTH_REQ_PARAMS)
+        check_params_exist(req, GET_CERT_REQ_PARAMS)
         validate_csr(req["csr"], req["sn"])
         validate_flags(req["flags"])
 
@@ -156,5 +156,5 @@ def check_request(req):
             raise RequestConsistencyError("Renew allowed only in the first request")
 
     elif req["type"] == "auth":
-        check_params_exist(req, GET_CERT_REQ_PARAMS)
+        check_params_exist(req, AUTH_REQ_PARAMS)
         validate_digest(req["digest"])
