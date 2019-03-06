@@ -6,12 +6,12 @@ import certapi.exceptions as ex
 
 
 def test_valid_sn_atsha(good_sn_atsha):
-    v.validate_sn_atsha(good_sn_atsha)
+    v.validate_sn_turris(good_sn_atsha)
 
 
 def test_invalid_sn_atsha(bad_sn_atsha):
     with pytest.raises(ex.RequestConsistencyError):
-        v.validate_sn_atsha(bad_sn_atsha)
+        v.validate_sn_turris(bad_sn_atsha)
 
 
 def test_valid_csr_common_name(valid_csr_sn_sets):
