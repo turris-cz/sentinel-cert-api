@@ -74,7 +74,7 @@ def bad_req_types(request):
     ["renew"],
     [],
 ])
-def good_flags(request):
+def good_certs_flags(request):
     return request.param
 
 
@@ -84,7 +84,7 @@ def good_flags(request):
     [" "],
     [None],
 ])
-def bad_flags(request):
+def bad_certs_flags(request):
     return request.param
 
 
@@ -140,7 +140,8 @@ def bad_sid(request):
         "digest": "",
         "csr_str": "",
         "flags": "",
-    }
+        "action": "certs",
+    },
 ])
 def good_sessions(request):
     return request.param

@@ -326,7 +326,8 @@ good_sessions = [
         "wup0tMMeQM/xrHgBYylaTT6ngfGZQpsrmpBAIhAIhxE9+bzUoBDYFRTFHq4lzD/mzCb3s\n"
         "/lFwJy694PqA0-----END CERTIFICATE REQUEST-----",
         "flags": [],
-        "digest": ""
+        "digest": "",
+        "action": "certs",
     },
     {
         "flags": [],
@@ -338,7 +339,8 @@ good_sessions = [
         "M/iDdl4+m+fW3NnIOf3epwWZjJQqQY8R0b6+cm9eSHpqIlI6zjUCzBD1jC1BsewZ25Dy7\n"
         "nQMGOmvwrTYoBEwDwYJKoZIhvcNAQkOMQIwADAKBggqhkjOPQQDAgNHADBEAiBN20doyA\n"
         "17mcy4thRY61WY8njlY6jGTV05olYg6lJlDgIgM7DGv4yRLoj7HZkkKJmXDZ+w2PdKLp2\n"
-        "za8Si7xiC+zs=-----END CERTIFICATE REQUEST-----"
+        "za8Si7xiC+zs=-----END CERTIFICATE REQUEST-----",
+        "action": "certs",
     }
 ]
 

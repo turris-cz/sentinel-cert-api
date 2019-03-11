@@ -38,13 +38,13 @@ def test_invalid_csr(bad_csr, bad_sn_atsha):
         v.validate_csr(bad_csr, bad_sn_atsha)
 
 
-def test_valid_flags(good_flags):
-    v.validate_flags(good_flags)
+def test_valid_flags(good_certs_flags):
+    v.validate_certs_flags(good_certs_flags)
 
 
-def test_invalid_flags(bad_flags):
+def test_invalid_flags(bad_certs_flags):
     with pytest.raises(ex.RequestConsistencyError):
-        v.validate_flags(bad_flags)
+        v.validate_certs_flags(bad_certs_flags)
 
 
 def test_valid_auth_type(good_auth_types):
