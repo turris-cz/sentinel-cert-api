@@ -1,7 +1,6 @@
 from .crypto import AVAIL_HASHES, get_common_names, csr_from_str
 from .exceptions import RequestConsistencyError, InvalidRedisDataError
 
-AVAIL_REQUEST_TYPES = {"get_cert", "auth"}
 AVAIL_FLAGS = {"renew"}
 AVAIL_STATES = {"ok", "fail", "error"}
 
@@ -83,11 +82,6 @@ def validate_flags(flags):
             raise RequestConsistencyError("Flag not available: {}".format(flag))
 
 
-def validate_req_type(req_type):
-    if req_type not in AVAIL_REQUEST_TYPES:
-        raise RequestConsistencyError("Invalid request type: {}".format(req_type))
-
-
 def validate_sid(sid):
     if sid == "":
         return
@@ -141,13 +135,12 @@ def check_request(req):
     if type(req) is not dict:
         raise RequestConsistencyError("Request not a valid JSON with correct content type")
     check_params_exist(req, GENERAL_REQ_PARAMS)
-    validate_req_type(req["type"])
     validate_auth_type(req["auth_type"])
     validate_sn = sn_validators[req["auth_type"]]
     validate_sn(req["sn"])
     validate_sid(req["sid"])
 
-    if req["type"] == "get_cert":
+    if req["type"] == "get_cert" or req["type"] == "get":
         check_params_exist(req, GET_CERT_REQ_PARAMS)
         validate_csr(req["csr"], req["sn"])
         validate_flags(req["flags"])
@@ -158,3 +151,6 @@ def check_request(req):
     elif req["type"] == "auth":
         check_params_exist(req, AUTH_REQ_PARAMS)
         validate_digest(req["digest"])
+
+    else:
+        raise RequestConsistencyError("Invalid request type: {}".format(req["type"]))
