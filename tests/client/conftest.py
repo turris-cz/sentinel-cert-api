@@ -119,7 +119,7 @@ good_reqs_get_cert = [
     },
     {  # bad req type
         "sn": "0000000A000001F3",
-        "type": "get",
+        "type": "gett",
         "csr": "-----BEGIN CERTIFICATE REQUEST-----\n"
         "MIHoMIGOAgEAMBsxGTAXBgNVBAMMEDAwMDAwMDBBMDAwMDAxRjMwWTATBgcqhkjO\n"
         "PQIBBggqhkjOPQMBBwNCAATZidHnuSVUH647KgxFnvgP74OTAdKdkSgVZEfyoAXy\n"

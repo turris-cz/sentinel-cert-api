@@ -38,15 +38,6 @@ def test_invalid_csr(bad_csr, bad_sn_atsha):
         v.validate_csr(bad_csr, bad_sn_atsha)
 
 
-def test_valid_req_type(good_req_types):
-    v.validate_req_type(good_req_types)
-
-
-def test_invalid_req_type(bad_req_types):
-    with pytest.raises(ex.RequestConsistencyError):
-        v.validate_req_type(bad_req_types)
-
-
 def test_valid_flags(good_flags):
     v.validate_flags(good_flags)
 
