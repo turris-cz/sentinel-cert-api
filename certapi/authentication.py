@@ -26,11 +26,13 @@ DELAY_GET_SESSION_EXISTS = 10
 DELAY_AUTH = 10
 DELAY_AUTH_AGAIN = 10
 
+QUEUE_NAME_MAILPASS = "mpr"
 QUEUE_NAME_CERTS = "csr"
 
 CERTS_EXTRA_PARAMS = ("csr_str",)
 
 ACTION_CERTS = "certs"
+ACTION_MAILPASS = "mailpass"
 
 
 class AuthStateMissing(Exception):
@@ -73,6 +75,14 @@ def build_reply_get_ok(cert_bytes):
     }
 
 
+def build_reply_get_mailpass_ok(secret):
+    return {
+        "status": "ok",
+        "secret": secret,
+        "message": "Authentication succesful, requested secret provided",
+    }
+
+
 def build_reply(status, msg=""):
     return {"status": status, "message": msg}
 
@@ -89,9 +99,14 @@ def get_cert_key(sn):
     return "certificate:{}".format(sn)
 
 
+def get_mailpass_key(sn):
+    return "mailpass:{}".format(sn)
+
+
 def create_auth_session(req, action, r, extra_params=()):
     """ This function is called in case of `certs` when no certificate with
-        matching private key is found in redis.
+        matching private key is found in redis or in case of `mailpass` at
+        the beginning of each session.
 
         Parameters "sn", "flags", "auth_type" and extra_params are required in
         the req dictionary
@@ -172,6 +187,30 @@ def process_req_get_cert(req, r):
     return build_reply_get_ok(cert_bytes)
 
 
+def process_req_get_mailpass(req, r):
+    """ Parameters "sn", "sid", "auth_type" and "flags" are
+        required in the req dictionary.
+    """
+    current_app.logger.debug("Processing mailpass GET request, sn=%s, sid=%s", req["sn"], req["sid"])
+
+    # Authentication is mandatory here - we do not cache passwords
+    if r.exists(get_session_key(req["sn"], req["sid"])):
+        try:
+            check_auth_state(req["sn"], req["sid"], r)
+        except AuthStateMissing:
+            return build_reply_get_wait()
+    else:
+        return create_auth_session(req, ACTION_MAILPASS, r)
+
+    secret = r.get(get_mailpass_key(req["sn"])).decode("utf-8")
+    if not secret:
+        current_app.logger.warning("Auth OK but secret not in redis, sn=%s", req["sn"])
+        return create_auth_session(req, ACTION_MAILPASS, r)
+
+    current_app.logger.debug("Mailpass server from redis, sn=%s", req["sn"])
+    return build_reply_get_mailpass_ok(secret)
+
+
 def get_auth_session(sn, sid, r):
     """ Get state of client session from Redis. If the session is broken
     or missing, return fail info.
@@ -244,6 +283,8 @@ def process_req_auth(req, action, r):
     if action == "certs":
         store_auth_params(req["sn"], req["sid"], session, QUEUE_NAME_CERTS, r,
                           CERTS_EXTRA_PARAMS)
+    elif action == "mailpass":
+        store_auth_params(req["sn"], req["sid"], session, QUEUE_NAME_MAILPASS, r)
     else:
         raise CertAPISystemError("Unknown action {}".format(action))
 
@@ -258,6 +299,9 @@ def process_request(req, r, action):
             if action == "certs":
                 req["csr_str"] = req["csr"]  # stupid different naming in req and internals
                 return process_req_get_cert(req, r)
+
+            elif action == "mailpass":
+                return process_req_get_mailpass(req, r)
 
             raise CertAPISystemError("Unknown action {}".format(action))  # should not be raised here
 
