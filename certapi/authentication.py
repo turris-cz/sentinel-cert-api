@@ -221,7 +221,7 @@ def process_req_auth(sn, sid, digest, auth_type, r):
 def process_request(req, r):
     try:
         check_request(req)
-        if req["type"] == "get_cert":
+        if req["type"] == "get_cert" or req["type"] == "get":
             return process_req_get(req["sn"],
                                    req["sid"],
                                    req["csr"],
