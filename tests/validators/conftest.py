@@ -142,6 +142,13 @@ def bad_sid(request):
         "flags": "",
         "action": "certs",
     },
+    {
+        "auth_type": "",
+        "nonce": "",
+        "digest": "",
+        "flags": "",
+        "action": "mailpass",
+    }
 ])
 def good_sessions(request):
     return request.param
