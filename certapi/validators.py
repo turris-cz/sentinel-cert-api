@@ -17,6 +17,7 @@ SESSION_PARAMS = {
 #  Params of auth session saved in Redis, action-specific
 ACTION_SPEC_SESSION_PARAMS = {
     "certs": {"csr_str"},
+    "mailpass": set(),
 }
 
 #  Params of auth state saved in redis
