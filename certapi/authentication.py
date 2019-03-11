@@ -26,6 +26,10 @@ DELAY_GET_SESSION_EXISTS = 10
 DELAY_AUTH = 10
 DELAY_AUTH_AGAIN = 10
 
+QUEUE_NAME_CERTS = "csr"
+
+CERTS_EXTRA_PARAMS = ("csr_str",)
+
 
 class AuthStateMissing(Exception):
     pass
@@ -74,8 +78,9 @@ def get_cert_key(sn):
     return "certificate:{}".format(sn)
 
 
-def create_auth_session(sn, sid, csr_str, flags, auth_type, r):
-    """ Certificate with matching private key not found in redis
+def create_auth_session(sn, sid, csr_str, flags, auth_type, action, r):
+    """ This function is called in case of `certs` when no certificate with
+        matching private key is found in redis..
     """
     current_app.logger.debug("Starting authentication for sn=%s", sn)
     sid = create_random_sid()
@@ -86,6 +91,7 @@ def create_auth_session(sn, sid, csr_str, flags, auth_type, r):
         "digest": "",
         "csr_str": csr_str,
         "flags": flags,
+        "action": action,
     }
     r.setex(get_session_key(sn, sid),
             current_app.config["REDIS_SESSION_TIMEOUT"],
@@ -121,10 +127,10 @@ def check_auth_state(sn, sid, r):
         raise RequestProcessError(auth_state["message"])
 
 
-def process_req_get(sn, sid, csr_str, flags, auth_type, r):
-    current_app.logger.debug("Processing GET request, sn=%s, sid=%s", sn, sid)
+def process_req_get_cert(sn, sid, csr_str, flags, auth_type, r):
+    current_app.logger.debug("Processing cert GET request, sn=%s, sid=%s", sn, sid)
     if "renew" in flags:  # when renew is flagged we ignore cert in redis
-        return create_auth_session(sn, sid, csr_str, flags, auth_type, r)
+        return create_auth_session(sn, sid, csr_str, flags, auth_type, "certs", r)
     authenticated = False
 
     # We care about authentication only when session exists
@@ -141,7 +147,7 @@ def process_req_get(sn, sid, csr_str, flags, auth_type, r):
             current_app.logger.warning("Auth OK but certificate not in redis, sn=%s", sn)
         else:
             current_app.logger.debug("Certificate not in redis, sn=%s", sn)
-        return create_auth_session(sn, sid, csr_str, flags, auth_type, r)
+        return create_auth_session(sn, sid, csr_str, flags, auth_type, "certs", r)
 
     current_app.logger.debug("Certificate found in redis, sn=%s", sn)
 
@@ -175,64 +181,82 @@ def get_auth_session(sn, sid, r):
     return session
 
 
-def push_csr(sn, sid, session, digest, r):
-    """ Push csr to the queue in Redis and add digest to the auth session
+def store_auth_params(sn, sid, session, queue_name, r, extra_params=()):
+    """ This function is being called during processing auth request invoked
+        by the client. This function inserts the auth request into the Redis
+        queue along with its "action" so that propriate authority (CA, Mailpass)
+        cand handle the request.
+
+        The session (not the param) saved in Redis is being updated as well so
+        we can detect and forbid any possible duplicate auth request
+        in the future.
+
+        Parameters "nonce", "digest", "flags", "auth_type" and extra_params are
+        required in the session (the param) dictionary.
     """
-    session["digest"] = digest
+    params = ("nonce", "digest", "flags", "auth_type") + extra_params
+    request = {i: session[i] for i in params}
+    request.update({"sn": sn, "sid": sid})
+
     pipe = r.pipeline(transaction=True)
     pipe.delete(get_session_key(sn, sid))
     pipe.setex(get_session_key(sn, sid),
                current_app.config["REDIS_SESSION_TIMEOUT"],
                json.dumps(session))
-    request = {
-        "sn": sn,
-        "sid": sid,
-        "nonce": session['nonce'],
-        "digest": digest,
-        "csr_str": session['csr_str'],
-        "flags": session["flags"],
-        "auth_type": session["auth_type"],
-    }
-    pipe.lpush('csr', json.dumps(request))
+    pipe.lpush(queue_name, json.dumps(request))
     pipe.execute()
 
 
-def process_req_auth(sn, sid, digest, auth_type, r):
+def process_req_auth(sn, sid, digest, auth_type, action, r):
     current_app.logger.debug("Processing AUTH request, sn=%s, sid=%s", sn, sid)
 
     session = get_auth_session(sn, sid, r)
 
     current_app.logger.debug("Authentication session found open for sn=%s, sid=%s", sn, sid)
+
+    if session["action"] != action:
+        current_app.logger.debug("Action does not match, sn=%s, sid=%s", sn, sid)
+        raise RequestProcessError("Action does not match the original one")
+
     if session["auth_type"] != auth_type:
         current_app.logger.debug("Authentication type does not match, sn=%s, sid=%s", sn, sid)
         raise RequestProcessError("Auth type does not match the original one")
 
-    if session["digest"]:  # certificate creation in progress
+    if session["digest"]:  # already authenticated
         current_app.logger.debug("Digest already saved for sn=%s, sid=%s", sn, sid)
         raise RequestProcessError("Digest already saved")
 
-    # start certificate creation (CA will check the digest first)
+    # store authentication parameters & tell the client to ask for result later
     current_app.logger.debug("Saving digest for sn=%s, sid=%s", sn, sid)
-    push_csr(sn, sid, session, digest, r)
+    session["digest"] = digest
+    if action == "certs":
+        store_auth_params(sn, sid, session, QUEUE_NAME_CERTS, r,
+                          CERTS_EXTRA_PARAMS)
+    else:
+        raise CertAPISystemError("Unknown action {}".format(action))
 
     return build_reply_auth_accepted()
 
 
-def process_request(req, r):
+def process_request(req, r, action):
     try:
-        check_request(req)
+        check_request(req, action)
+
         if req["type"] == "get_cert" or req["type"] == "get":
-            return process_req_get(req["sn"],
-                                   req["sid"],
-                                   req["csr"],
-                                   req["flags"],
-                                   req["auth_type"],
-                                   r)
+            if action == "certs":
+                return process_req_get_cert(req["sn"],
+                                            req["sid"],
+                                            req["csr"],
+                                            req["flags"],
+                                            req["auth_type"],
+                                            r)
+            raise CertAPISystemError("Unknown action {}".format(action))
         elif req["type"] == "auth":
             return process_req_auth(req["sn"],
                                     req["sid"],
                                     req["digest"],
                                     req["auth_type"],
+                                    action,
                                     r)
     except RequestProcessError as e:
         return build_reply("fail", str(e))
