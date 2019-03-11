@@ -30,6 +30,8 @@ QUEUE_NAME_CERTS = "csr"
 
 CERTS_EXTRA_PARAMS = ("csr_str",)
 
+ACTION_CERTS = "certs"
+
 
 class AuthStateMissing(Exception):
     pass
@@ -41,6 +43,15 @@ def build_reply_auth_accepted(delay=DELAY_AUTH):
         "delay": delay,
         "message": "Certification process started, wait for {} sec before"
                    " sending next 'get_cert' request".format(delay),
+    }
+
+
+def build_reply_auth_start(sid, nonce):
+    return {
+        "status": "authenticate",
+        "sid": sid,
+        "nonce": nonce,
+        "message": "Authenticate yourself by sending digest and auth_type in 'auth' request"
     }
 
 
@@ -78,30 +89,25 @@ def get_cert_key(sn):
     return "certificate:{}".format(sn)
 
 
-def create_auth_session(sn, sid, csr_str, flags, auth_type, action, r):
+def create_auth_session(req, action, r, extra_params=()):
     """ This function is called in case of `certs` when no certificate with
-        matching private key is found in redis..
+        matching private key is found in redis.
+
+        Parameters "sn", "flags", "auth_type" and extra_params are required in
+        the req dictionary
     """
-    current_app.logger.debug("Starting authentication for sn=%s", sn)
+    current_app.logger.debug("Starting authentication for sn=%s", req["sn"])
     sid = create_random_sid()
     nonce = create_random_nonce()
-    session = {
-        "auth_type": auth_type,
-        "nonce": nonce,
-        "digest": "",
-        "csr_str": csr_str,
-        "flags": flags,
-        "action": action,
-    }
-    r.setex(get_session_key(sn, sid),
+
+    params = ("flags", "auth_type") + extra_params
+    session = {i: req[i] for i in params}
+    session.update({"action": action, "nonce": nonce, "digest": ""})
+
+    r.setex(get_session_key(req["sn"], sid),
             current_app.config["REDIS_SESSION_TIMEOUT"],
             json.dumps(session))
-    return {
-        "status": "authenticate",
-        "sid": sid,
-        "nonce": nonce,
-        "message": "Authenticate yourself by sending digest and auth_type in 'auth' request"
-    }
+    return build_reply_auth_start(sid, nonce)
 
 
 def check_auth_state(sn, sid, r):
@@ -127,39 +133,42 @@ def check_auth_state(sn, sid, r):
         raise RequestProcessError(auth_state["message"])
 
 
-def process_req_get_cert(sn, sid, csr_str, flags, auth_type, r):
-    current_app.logger.debug("Processing cert GET request, sn=%s, sid=%s", sn, sid)
-    if "renew" in flags:  # when renew is flagged we ignore cert in redis
-        return create_auth_session(sn, sid, csr_str, flags, auth_type, "certs", r)
+def process_req_get_cert(req, r):
+    """ Parameters "sn", "sid", "cert_str", "auth_type" and "flags" are
+        required in the req dictionary.
+    """
+    current_app.logger.debug("Processing cert GET request, sn=%s, sid=%s", req["sn"], req["sid"])
+    if "renew" in req["flags"]:  # when renew is flagged we ignore cert in redis
+        return create_auth_session(req, ACTION_CERTS, r, CERTS_EXTRA_PARAMS)
     authenticated = False
 
     # We care about authentication only when session exists
-    if r.exists(get_session_key(sn, sid)):
+    if r.exists(get_session_key(req["sn"], req["sid"])):
         try:
-            check_auth_state(sn, sid, r)
+            check_auth_state(req["sn"], req["sid"], r)
         except AuthStateMissing:
             return build_reply_get_wait()
         authenticated = True
 
-    cert_bytes = r.get(get_cert_key(sn))
+    cert_bytes = r.get(get_cert_key(req["sn"]))
     if not cert_bytes:
         if authenticated:
-            current_app.logger.warning("Auth OK but certificate not in redis, sn=%s", sn)
+            current_app.logger.warning("Auth OK but certificate not in redis, sn=%s", req["sn"])
         else:
-            current_app.logger.debug("Certificate not in redis, sn=%s", sn)
-        return create_auth_session(sn, sid, csr_str, flags, auth_type, "certs", r)
+            current_app.logger.debug("Certificate not in redis, sn=%s", req["sn"])
+        return create_auth_session(req, ACTION_CERTS, r, CERTS_EXTRA_PARAMS)
 
-    current_app.logger.debug("Certificate found in redis, sn=%s", sn)
+    current_app.logger.debug("Certificate found in redis, sn=%s", req["sn"])
 
     # cert and csr public key match
-    if not key_match(cert_bytes, csr_str.encode("utf-8")):
+    if not key_match(cert_bytes, req["csr_str"].encode("utf-8")):
         if authenticated:
-            current_app.logger.warning("Auth OK but certificate key does not match, sn=%s", sn)
+            current_app.logger.warning("Auth OK but certificate key does not match, sn=%s", req["sn"])
         else:
-            current_app.logger.debug("Certificate key does not match, sn=%s", sn)
-        return create_auth_session(sn, sid, csr_str, flags, auth_type, r)
+            current_app.logger.debug("Certificate key does not match, sn=%s", req["sn"])
+        return create_auth_session(req, ACTION_CERTS, r, CERTS_EXTRA_PARAMS)
 
-    current_app.logger.debug("Certificate restored from redis, sn=%s", sn)
+    current_app.logger.debug("Certificate restored from redis, sn=%s", req["sn"])
     return build_reply_get_ok(cert_bytes)
 
 
@@ -207,30 +216,33 @@ def store_auth_params(sn, sid, session, queue_name, r, extra_params=()):
     pipe.execute()
 
 
-def process_req_auth(sn, sid, digest, auth_type, action, r):
-    current_app.logger.debug("Processing AUTH request, sn=%s, sid=%s", sn, sid)
+def process_req_auth(req, action, r):
+    """ Parameters "sn", "sid", "digest" and "auth_type" are
+        required in the req dictionary.
+    """
+    current_app.logger.debug("Processing AUTH request, sn=%s, sid=%s", req["sn"], req["sid"])
 
-    session = get_auth_session(sn, sid, r)
+    session = get_auth_session(req["sn"], req["sid"], r)
 
-    current_app.logger.debug("Authentication session found open for sn=%s, sid=%s", sn, sid)
+    current_app.logger.debug("Authentication session found open for sn=%s, sid=%s", req["sn"], req["sid"])
 
     if session["action"] != action:
-        current_app.logger.debug("Action does not match, sn=%s, sid=%s", sn, sid)
+        current_app.logger.debug("Action does not match, sn=%s, sid=%s", req["sn"], req["sid"])
         raise RequestProcessError("Action does not match the original one")
 
-    if session["auth_type"] != auth_type:
-        current_app.logger.debug("Authentication type does not match, sn=%s, sid=%s", sn, sid)
+    if session["auth_type"] != req["auth_type"]:
+        current_app.logger.debug("Authentication type does not match, sn=%s, sid=%s", req["sn"], req["sid"])
         raise RequestProcessError("Auth type does not match the original one")
 
     if session["digest"]:  # already authenticated
-        current_app.logger.debug("Digest already saved for sn=%s, sid=%s", sn, sid)
+        current_app.logger.debug("Digest already saved for sn=%s, sid=%s", req["sn"], req["sid"])
         raise RequestProcessError("Digest already saved")
 
     # store authentication parameters & tell the client to ask for result later
-    current_app.logger.debug("Saving digest for sn=%s, sid=%s", sn, sid)
-    session["digest"] = digest
+    current_app.logger.debug("Saving digest for sn=%s, sid=%s", req["sn"], req["sid"])
+    session["digest"] = req["digest"]
     if action == "certs":
-        store_auth_params(sn, sid, session, QUEUE_NAME_CERTS, r,
+        store_auth_params(req["sn"], req["sid"], session, QUEUE_NAME_CERTS, r,
                           CERTS_EXTRA_PARAMS)
     else:
         raise CertAPISystemError("Unknown action {}".format(action))
@@ -244,24 +256,22 @@ def process_request(req, r, action):
 
         if req["type"] == "get_cert" or req["type"] == "get":
             if action == "certs":
-                return process_req_get_cert(req["sn"],
-                                            req["sid"],
-                                            req["csr"],
-                                            req["flags"],
-                                            req["auth_type"],
-                                            r)
-            raise CertAPISystemError("Unknown action {}".format(action))
+                req["csr_str"] = req["csr"]  # stupid different naming in req and internals
+                return process_req_get_cert(req, r)
+
+            raise CertAPISystemError("Unknown action {}".format(action))  # should not be raised here
+
         elif req["type"] == "auth":
-            return process_req_auth(req["sn"],
-                                    req["sid"],
-                                    req["digest"],
-                                    req["auth_type"],
-                                    action,
-                                    r)
+            return process_req_auth(req, action, r)
+
+        raise CertAPISystemError("Invalid request type {}".format(action))  # should not be raised here
+
     except RequestProcessError as e:
         return build_reply("fail", str(e))
+
     except RequestConsistencyError as e:
         return build_reply("error", str(e))
+
     except CertAPISystemError as e:
         current_app.logger.error(str(e))
         return build_reply("error", "Sentinel error. Please, restart the process")
