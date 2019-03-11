@@ -40,6 +40,16 @@ def certs_view():
     return jsonify(reply)
 
 
+@apiv1.route("mailpass", methods=['POST'])
+def mailpass_view():
+    # request.data is class bytes
+    req_json = request.get_json()  # class dict
+    log_debug_json("Incomming connection", req_json)
+    reply = process_request(req_json, get_redis(), "mailpass")
+    log_debug_json("Reply", reply)
+    return jsonify(reply)
+
+
 @apiv1.route("", methods=['GET'])
 def redirect_humans():
     return redirect(url_for("pages.home"))
