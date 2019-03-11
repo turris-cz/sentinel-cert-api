@@ -29,12 +29,13 @@ def log_debug_json(msg, msg_json):
     current_app.logger.debug("%s:\n%s", msg, json.dumps(msg_json, indent=2))
 
 
+@apiv1.route("certs", methods=['POST'])
 @apiv1.route("", methods=['POST'])
-def auth_request():
+def certs_view():
     # request.data is class bytes
     req_json = request.get_json()  # class dict
     log_debug_json("Incomming connection", req_json)
-    reply = process_request(req_json, get_redis())
+    reply = process_request(req_json, get_redis(), "certs")
     log_debug_json("Reply", reply)
     return jsonify(reply)
 
