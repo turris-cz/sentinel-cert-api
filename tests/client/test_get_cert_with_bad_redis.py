@@ -1,4 +1,4 @@
-from certapi.validators import validate_digest, validate_sid
+from certapi.validators import validate_digest, validate_sid, DIGEST_LEN
 
 
 def good_req_sid_useless_cert_broken(client, good_data, redis_mock, bad_cert):
@@ -12,7 +12,7 @@ def good_req_sid_useless_cert_broken(client, good_data, redis_mock, bad_cert):
     assert rv.status_code == 200
     resp_data = rv.get_json()
     assert resp_data["status"] == "authenticate"
-    validate_digest(resp_data["nonce"])
+    validate_digest(resp_data["nonce"], DIGEST_LEN[good_data[0]["auth_type"]])
     validate_sid(resp_data["sid"])
 
 
