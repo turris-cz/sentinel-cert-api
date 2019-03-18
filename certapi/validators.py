@@ -48,10 +48,14 @@ AUTH_REQ_PARAMS = {
 # Length of digest computed by atsha / otp devices
 DIGEST_LEN = {
     "atsha204": 64,
+    "otp": 264
 }
 
 
-def validate_sn_atsha(sn):
+def validate_sn_turris(sn):
+    """ Check serial number format of Turris 1.x and Turris Omnia devices
+        using atsha204 and Turris MOX using otp.
+    """
     if len(sn) != 16:
         raise RequestConsistencyError("SN has invalid length.")
     if sn[0:5] != "00000":
@@ -65,7 +69,8 @@ def validate_sn_atsha(sn):
 
 
 sn_validators = {
-    "atsha204": validate_sn_atsha,
+    "atsha204": validate_sn_turris,
+    "otp": validate_sn_turris,
 }
 
 
