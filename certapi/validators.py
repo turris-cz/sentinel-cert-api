@@ -45,6 +45,10 @@ GET_CERT_REQ_PARAMS = {
 AUTH_REQ_PARAMS = {
     "digest",
 }
+# Length of digest computed by atsha / otp devices
+DIGEST_LEN = {
+    "atsha204": 64,
+}
 
 
 def validate_sn_atsha(sn):
@@ -110,8 +114,8 @@ def validate_sid(sid):
         raise RequestConsistencyError("Bad format of sid: {}".format(sid))
 
 
-def validate_digest(digest):
-    if len(digest) != 64:
+def validate_digest(digest, length):
+    if len(digest) != length:
         raise RequestConsistencyError("Bad format of digest: {}".format(digest))
     try:
         digest = int(digest, 16)
@@ -171,7 +175,7 @@ def check_request(req, action):
 
     elif req["type"] == "auth":
         check_params_exist(req, AUTH_REQ_PARAMS)
-        validate_digest(req["digest"])
+        validate_digest(req["digest"], DIGEST_LEN[req["auth_type"]])
 
     else:
         raise RequestConsistencyError("Invalid request type: {}".format(req["type"]))
