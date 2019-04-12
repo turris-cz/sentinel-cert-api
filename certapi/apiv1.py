@@ -16,12 +16,11 @@ apiv1 = Blueprint("apiv1", __name__)
 
 
 def get_redis():
-    r = g.get('redis', None)
-    if r is None:
-        r = g.redis = redis.StrictRedis(host=current_app.config["REDIS_HOST"],
-                                        port=current_app.config["REDIS_PORT"],
-                                        password=current_app.config["REDIS_PASSWORD"])
-    return r
+    if "redis" not in g:
+        g.redis = redis.StrictRedis(host=current_app.config["REDIS_HOST"],
+                                    port=current_app.config["REDIS_PORT"],
+                                    password=current_app.config["REDIS_PASSWORD"])
+    return g.redis
 
 
 def log_debug_json(msg, msg_json):
