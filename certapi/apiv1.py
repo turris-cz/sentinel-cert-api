@@ -15,12 +15,24 @@ from .authentication import process_request
 apiv1 = Blueprint("apiv1", __name__)
 
 
-def get_redis():
-    if "redis" not in g:
-        g.redis = redis.StrictRedis(host=current_app.config["REDIS_HOST"],
-                                    port=current_app.config["REDIS_PORT"],
-                                    password=current_app.config["REDIS_PASSWORD"])
-    return g.redis
+def _get_redis_instance(config_namespace):
+    config = current_app.config.get_namespace(config_namespace)
+    r = redis.StrictRedis(host=config.get("host"),
+                          port=config.get("port"),
+                          password=config.get("password"))
+    return r
+
+
+def get_certs_redis():
+    if "redis_certs" not in g:
+        g.redis_certs = _get_redis_instance("REDIS_CERTS_")
+    return g.redis_certs
+
+
+def get_mailpass_redis():
+    if "redis_mailpass" not in g:
+        g.redis_mailpass = _get_redis_instance("REDIS_MAILPASS_")
+    return g.redis_mailpass
 
 
 def log_debug_json(msg, msg_json):
@@ -33,7 +45,7 @@ def certs_view():
     # request.data is class bytes
     req_json = request.get_json()  # class dict
     log_debug_json("Incomming connection", req_json)
-    reply = process_request(req_json, get_redis(), "certs")
+    reply = process_request(req_json, get_certs_redis(), "certs")
     log_debug_json("Reply", reply)
     return jsonify(reply)
 
@@ -43,7 +55,7 @@ def mailpass_view():
     # request.data is class bytes
     req_json = request.get_json()  # class dict
     log_debug_json("Incomming connection", req_json)
-    reply = process_request(req_json, get_redis(), "mailpass")
+    reply = process_request(req_json, get_mailpass_redis(), "mailpass")
     log_debug_json("Reply", reply)
     return jsonify(reply)
 

@@ -1,3 +1,11 @@
-REDIS_HOST = "redis.example.org"
-REDIS_PASSWORD = "foobared"
-REDIS_SESSION_TIMEOUT = 5*60
+## local.cfg
+#
+# Example configuration parameters for Sentinel:Cert-API
+
+# Sentinel:CA Redis database
+REDIS_CERTS_HOST = "redis.example.org"
+REDIS_CERTS_PASSWORD = "foobared"
+
+# Sentinel:Mailpass database
+REDIS_MAILPASS_HOST = "redis.priklad.cz"
+REDIS_MAILPASS_PASSWORD = "tajneheslo"
