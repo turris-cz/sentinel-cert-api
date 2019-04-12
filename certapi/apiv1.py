@@ -20,8 +20,7 @@ def get_redis():
     if r is None:
         r = g.redis = redis.StrictRedis(host=current_app.config["REDIS_HOST"],
                                         port=current_app.config["REDIS_PORT"],
-                                        password=current_app.config["REDIS_PASSWORD"],
-                                        db=0)
+                                        password=current_app.config["REDIS_PASSWORD"])
     return r
 
 
