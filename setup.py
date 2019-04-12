@@ -1,10 +1,16 @@
+#!/usr/bin/env python
+
 from setuptools import setup
+
+
+VERSION = "0.5.1"
 
 
 setup(
     name="certapi",
     author="CZ.NIC, z.s.p.o.",
     author_email="packaging@turris.cz",
+    version=VERSION,
     zip_safe=False,
     include_package_data=True,
     packages=["certapi"],
