@@ -89,18 +89,18 @@ def bad_certs_flags(request):
 
 
 @pytest.fixture(params=[
-    "atsha204",
+    "atsha",
 ])
 def good_auth_types(request):
     return request.param
 
 
 @pytest.fixture(params=[
-    "atsha",
+    "atsha204",
     "",
     " ",
     None,
-    #  TODO: improve cert-spi so these lines can ba added to tests
+    #  TODO: improve cert-api so these lines can be added to tests
     #  ["atsha"],
     #  ["atsha204"],
     #  [],

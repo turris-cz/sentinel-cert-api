@@ -33,7 +33,7 @@ def redis_mock():
         "MQIwADAKBggqhkjOPQQDAgNJADBGAiEAy2GDiZGcK9CAg7xpqUrgSb5eQnP2LSI7\n"
         "dKI45BF+g5kCIQCgnRB9mt9ThDSeuFB5fDZ3aGizDDdK8E+rYpuAW7VCpQ==\n"
         "-----END CERTIFICATE REQUEST-----\n",
-        "auth_type": "atsha204",
+        "auth_type": "atsha",
         "sid": "",
         "flags": ["renew"]
     },
@@ -44,7 +44,7 @@ def good_req_get_cert_renew(request):
 
 good_reqs_get_cert = [
     {
-        "auth_type": "atsha204",
+        "auth_type": "atsha",
         "sn": "0000000A000001F3",
         "flags": [],
         "sid": "4cca5561cf766855a02ee33f229acf4b144fdb7988abd85fd2bad3cfe2546d9f",
@@ -59,7 +59,7 @@ good_reqs_get_cert = [
     },
     {
         "type": "get",
-        "auth_type": "atsha204",
+        "auth_type": "atsha",
         "sid": "aea13dbed3b576cc8300d4710bdc708e6baff00f2e485ad2d9614fdc378fd4e0",
         "flags": [],
         "csr_str": "-----BEGIN CERTIFICATE REQUEST-----\n"
@@ -85,7 +85,7 @@ good_reqs_get_cert = [
         "MQIwADAKBggqhkjOPQQDAgNJADBGAiEAy2GDiZGcK9CAg7xpqUrgSb5eQnP2LSI7\n"
         "dKI45BF+g5kCIQCgnRB9mt9ThDSeuFB5fDZ3aGizDDdK8E+rYpuAW7VCpQ==\n"
         "-----END CERTIFICATE REQUEST-----\n",
-        "auth_type": "atsha204",
+        "auth_type": "atsha",
         "sid": "",
         "flags": ["renew"]
     },
@@ -99,7 +99,7 @@ good_reqs_get_cert = [
         "MQIwADAKBggqhkjOPQQDAgNJADBGAiEAy2GDiZGcK9CAg7xpqUrgSb5eQnP2LSI7\n"
         "dKI45BF+g5kCIQCgnRB9mt9ThDSeuFB5fDZ3aGizDDdK8E+rYpuAW7VCpQ==\n"
         "-----END CERTIFICATE REQUEST-----\n",
-        "auth_type": "atsha204",
+        "auth_type": "atsha",
         "sid": "4821",
         "flags": ["renew"]
     },
@@ -113,7 +113,7 @@ good_reqs_get_cert = [
         "MQIwADAKBggqhkjOPQQDAgNJADBGAiEAy2GDiZGcK9CAg7xpqUrgSb5eQnP2LSI7\n"
         "dKI45BF+g5kCIQCgnRB9mt9ThDSeuFB5fDZ3aGizDDdK8E+rYpuAW7VCpQ==\n"
         "-----END CERTIFICATE REQUEST-----\n",
-        "auth_type": "atsha",
+        "auth_type": "atsha204",
         "sid": "",
         "flags": ["renew"]
     },
@@ -127,7 +127,7 @@ good_reqs_get_cert = [
         "MQIwADAKBggqhkjOPQQDAgNJADBGAiEAy2GDiZGcK9CAg7xpqUrgSb5eQnP2LSI7\n"
         "dKI45BF+g5kCIQCgnRB9mt9ThDSeuFB5fDZ3aGizDDdK8E+rYpuAW7VCpQ==\n"
         "-----END CERTIFICATE REQUEST-----\n",
-        "auth_type": "atsha204",
+        "auth_type": "atsha",
         "sid": "",
         "flags": ["renew"]
     },
@@ -141,7 +141,7 @@ good_reqs_get_cert = [
         "MQIwADAKBggqhkjOPQQDAgNJADBGAiEAy2GDiZGcK9CAg7xpqUrgSb5eQnP2LSI7\n"
         "dKI45BF+g5kCIQCgnRB9mt9ThDSeuFB5fDZ3aGizDDdK8E+rYpuAW7VCpQ==\n"
         "-----END CERTIFICATE REQUEST-----\n",
-        "auth_type": "atsha204",
+        "auth_type": "atsha",
         "sid": "",
         "flags": ["renew"]
     },
@@ -155,7 +155,7 @@ good_reqs_get_cert = [
         "MQIwADAKBggqhkjOPQQDAgNJADBGAiEAy2GDiZGcK9CAg7xpqUrgSb5eQnP2LSI7\n"
         "dKI45BF+g5kCIQCgnRB9mt9ThDSeuFB5fDZ3aGizDDdK8E+rYpuAW7VCpQ==\n"
         "-----END CERTIFICATE REQUEST-----\n",
-        "auth_type": "atsha204",
+        "auth_type": "atsha",
         "sid": "",
         "flags": ["new"]
     },
@@ -258,7 +258,7 @@ def good_data(request):
 
 good_reqs_auth = [
     {
-        "auth_type": "atsha204",
+        "auth_type": "atsha",
         "sn": "0000000A000001F3",
         "type": "auth",
         "sid": "4cca5561cf766855a02ee33f229acf4b144fdb7988abd85fd2bad3cfe2546d9f",
@@ -268,7 +268,7 @@ good_reqs_auth = [
         "type": "auth",
         "digest": "8B3DCBE95B151390F0F33AA453D486D748CD836693B46602200565898EB7C3BA",
         "sid": "aea13dbed3b576cc8300d4710bdc708e6baff00f2e485ad2d9614fdc378fd4e0",
-        "auth_type": "atsha204",
+        "auth_type": "atsha",
         "sn": "0000000A000001F3"
     },
 ]
@@ -276,35 +276,35 @@ good_reqs_auth = [
 
 @pytest.fixture(params=[
     {  # bad auth_type
-        "auth_type": "atsha",
+        "auth_type": "atsha204",
         "sn": "0000000A000001F3",
         "type": "auth",
         "sid": "4cca5561cf766855a02ee33f229acf4b144fdb7988abd85fd2bad3cfe2546d9f",
         "digest": "D9C57EF288673CBC6EBAF6990991C58294521AA46E4FF5A2F49D3326F53E10C0"
     },
     {  # bad sn
-        "auth_type": "atsha204",
+        "auth_type": "atsha",
         "sn": "0000000A000001F4",
         "type": "auth",
         "sid": "4cca5561cf766855a02ee33f229acf4b144fdb7988abd85fd2bad3cfe2546d9f",
         "digest": "D9C57EF288673CBC6EBAF6990991C58294521AA46E4FF5A2F49D3326F53E10C0"
     },
     {  # bad type
-        "auth_type": "atsha204",
+        "auth_type": "atsha",
         "sn": "0000000A000001F3",
         "type": "authenticate",
         "sid": "4cca5561cf766855a02ee33f229acf4b144fdb7988abd85fd2bad3cfe2546d9f",
         "digest": "D9C57EF288673CBC6EBAF6990991C58294521AA46E4FF5A2F49D3326F53E10C0"
     },
     {  # bad sid (short)
-        "auth_type": "atsha204",
+        "auth_type": "atsha",
         "sn": "0000000A000001F3",
         "type": "auth",
         "sid": "4cca5561cf766855a02ee33f229acf4b144fdb7988abd85fd2bad3cfe2546d",
         "digest": "D9C57EF288673CBC6EBAF6990991C58294521AA46E4FF5A2F49D3326F53E10C0"
     },
     {  # bad digest (non hexa character)
-        "auth_type": "atsha204",
+        "auth_type": "atsha",
         "sn": "0000000A000001F3",
         "type": "auth",
         "sid": "4cca5561cf766855a02ee33f229acf4b144fdb7988abd85fd2bad3cfe2546d9f",
@@ -318,7 +318,7 @@ def bad_req_auth(request):
 good_sessions = [
     {
         "nonce": "665e12e4db0c1c74a24457327c0456e52b026440766d7bb5da58061bdf58160a",
-        "auth_type": "atsha204",
+        "auth_type": "atsha",
         "csr_str": "-----BEGIN CERTIFICATE REQUEST-----MIHnMIGOAgEAMBsxGTAXBgN\n"
         "VBAMMEDAwMDAwMDBBMDAwMDAxRjMwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAASCLeKI\n"
         "XMOsIdxYndnySeHcwv+EvJvp6RiXPd2gY/pzkfNBVFzudGJ8tKWo4JPG1U66Crh5Ggqax\n"
@@ -333,7 +333,7 @@ good_sessions = [
         "flags": [],
         "digest": "",
         "nonce": "edd22df680f82d1ed1264a93b4f81ddd735aba22b8a99989b087abb2ea4ca3f0",
-        "auth_type": "atsha204",
+        "auth_type": "atsha",
         "csr_str": "-----BEGIN CERTIFICATE REQUEST-----MIHmMIGOAgEAMBsxGTAXBgN\n"
         "VBAMMEDAwMDAwMDBBMDAwMDAxRjMwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAAQGpZBc\n"
         "M/iDdl4+m+fW3NnIOf3epwWZjJQqQY8R0b6+cm9eSHpqIlI6zjUCzBD1jC1BsewZ25Dy7\n"
@@ -351,7 +351,7 @@ good_sessions = [
     {  # missing flags
         "digest": "",
         "nonce": "edd22df680f82d1ed1264a93b4f81ddd735aba22b8a99989b087abb2ea4ca3f0",
-        "auth_type": "atsha204",
+        "auth_type": "atsha",
         "csr_str": "-----BEGIN CERTIFICATE REQUEST-----MIHmMIGOAgEAMBsxGTAXBgN\n"
         "VBAMMEDAwMDAwMDBBMDAwMDAxRjMwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAAQGpZBc\n"
         "M/iDdl4+m+fW3NnIOf3epwWZjJQqQY8R0b6+cm9eSHpqIlI6zjUCzBD1jC1BsewZ25Dy7\n"
@@ -363,14 +363,14 @@ good_sessions = [
         "flags": [],
         "digest": "",
         "nonce": "edd22df680f82d1ed1264a93b4f81ddd735aba22b8a99989b087abb2ea4ca3f0",
-        "auth_type": "atsha204",
+        "auth_type": "atsha",
     },
 
     # {  # invalid nonce  TODO: improve cert-api to this could be added to tests
     #     "flags": [],
     #     "digest": "",
     #     "nonce": "XXd22df680f82d1ed1264a93b4f81ddd735aba22b8a99989b087abb2ea4ca3f0",
-    #     "auth_type": "atsha204",
+    #     "auth_type": "atsha",
     #     "csr_str": "-----BEGIN CERTIFICATE REQUEST-----MIHmMIGOAgEAMBsxGTAXBgN\n"
     #     "VBAMMEDAwMDAwMDBBMDAwMDAxRjMwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAAQGpZBc\n"
     #     "M/iDdl4+m+fW3NnIOf3epwWZjJQqQY8R0b6+cm9eSHpqIlI6zjUCzBD1jC1BsewZ25Dy7\n"
