@@ -10,7 +10,7 @@ AVAIL_STATES = {"ok", "fail", "error"}
 SESSION_PARAMS = {
     "auth_type",
     "nonce",
-    "digest",
+    "signature",
     "action",
     "flags",
 }
@@ -43,10 +43,10 @@ GET_CERT_REQ_PARAMS = {
 }
 # Params of request send by clients, auth
 AUTH_REQ_PARAMS = {
-    "digest",
+    "signature",
 }
-# Length of digest computed by atsha / otp devices
-DIGEST_LEN = {
+# Length of signature computed by atsha / otp devices
+SIGNATURE_LENGTH = {
     "atsha": 64,
     "otp": 264
 }
@@ -119,13 +119,13 @@ def validate_sid(sid):
         raise RequestConsistencyError("Bad format of sid: {}".format(sid))
 
 
-def validate_digest(digest, length):
-    if len(digest) != length:
-        raise RequestConsistencyError("Bad format of digest: {}".format(digest))
+def validate_signature(signature, length):
+    if len(signature) != length:
+        raise RequestConsistencyError("Bad signature format: {}".format(signature))
     try:
-        digest = int(digest, 16)
+        signature = int(signature, 16)
     except ValueError:
-        raise RequestConsistencyError("Bad format of digest: {}".format(digest))
+        raise RequestConsistencyError("Bad signature format: {}".format(signature))
 
 
 def validate_auth_type(auth_type):
@@ -180,7 +180,7 @@ def check_request(req, action):
 
     elif req["type"] == "auth":
         check_params_exist(req, AUTH_REQ_PARAMS)
-        validate_digest(req["digest"], DIGEST_LEN[req["auth_type"]])
+        validate_signature(req["signature"], SIGNATURE_LENGTH[req["auth_type"]])
 
     else:
         raise RequestConsistencyError("Invalid request type: {}".format(req["type"]))

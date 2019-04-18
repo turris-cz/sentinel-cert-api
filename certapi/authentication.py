@@ -53,7 +53,7 @@ def build_reply_auth_start(sid, nonce):
         "status": "authenticate",
         "sid": sid,
         "nonce": nonce,
-        "message": "Authenticate yourself by sending digest and auth_type in 'auth' request"
+        "message": "Authenticate yourself by sending signature and auth_type in 'auth' request"
     }
 
 
@@ -117,7 +117,7 @@ def create_auth_session(req, action, r, extra_params=()):
 
     params = ("flags", "auth_type") + extra_params
     session = {i: req[i] for i in params}
-    session.update({"action": action, "nonce": nonce, "digest": ""})
+    session.update({"action": action, "nonce": nonce, "signature": ""})
 
     r.setex(get_session_key(req["sn"], sid),
             current_app.config["REDIS_SESSION_TIMEOUT"],
@@ -239,10 +239,10 @@ def store_auth_params(sn, sid, session, queue_name, r, extra_params=()):
         we can detect and forbid any possible duplicate auth request
         in the future.
 
-        Parameters "nonce", "digest", "flags", "auth_type" and extra_params are
+        Parameters "nonce", "signature", "flags", "auth_type" and extra_params are
         required in the session (the param) dictionary.
     """
-    params = ("nonce", "digest", "flags", "auth_type") + extra_params
+    params = ("nonce", "signature", "flags", "auth_type") + extra_params
     request = {i: session[i] for i in params}
     request.update({"sn": sn, "sid": sid})
 
@@ -256,7 +256,7 @@ def store_auth_params(sn, sid, session, queue_name, r, extra_params=()):
 
 
 def process_req_auth(req, action, r):
-    """ Parameters "sn", "sid", "digest" and "auth_type" are
+    """ Parameters "sn", "sid", "signature" and "auth_type" are
         required in the req dictionary.
     """
     current_app.logger.debug("Processing AUTH request, sn=%s, sid=%s", req["sn"], req["sid"])
@@ -273,13 +273,13 @@ def process_req_auth(req, action, r):
         current_app.logger.debug("Authentication type does not match, sn=%s, sid=%s", req["sn"], req["sid"])
         raise RequestProcessError("Auth type does not match the original one")
 
-    if session["digest"]:  # already authenticated
-        current_app.logger.debug("Digest already saved for sn=%s, sid=%s", req["sn"], req["sid"])
-        raise RequestProcessError("Digest already saved")
+    if session["signature"]:  # already authenticated
+        current_app.logger.debug("Signature already saved for sn=%s, sid=%s", req["sn"], req["sid"])
+        raise RequestProcessError("Signature already saved")
 
     # store authentication parameters & tell the client to ask for result later
-    current_app.logger.debug("Saving digest for sn=%s, sid=%s", req["sn"], req["sid"])
-    session["digest"] = req["digest"]
+    current_app.logger.debug("Saving signature for sn=%s, sid=%s", req["sn"], req["sid"])
+    session["signature"] = req["signature"]
     if action == "certs":
         store_auth_params(req["sn"], req["sid"], session, QUEUE_NAME_CERTS, r,
                           CERTS_EXTRA_PARAMS)

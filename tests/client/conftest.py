@@ -262,11 +262,11 @@ good_reqs_auth = [
         "sn": "0000000A000001F3",
         "type": "auth",
         "sid": "4cca5561cf766855a02ee33f229acf4b144fdb7988abd85fd2bad3cfe2546d9f",
-        "digest": "D9C57EF288673CBC6EBAF6990991C58294521AA46E4FF5A2F49D3326F53E10C0"
+        "signature": "D9C57EF288673CBC6EBAF6990991C58294521AA46E4FF5A2F49D3326F53E10C0"
     },
     {
         "type": "auth",
-        "digest": "8B3DCBE95B151390F0F33AA453D486D748CD836693B46602200565898EB7C3BA",
+        "signature": "8B3DCBE95B151390F0F33AA453D486D748CD836693B46602200565898EB7C3BA",
         "sid": "aea13dbed3b576cc8300d4710bdc708e6baff00f2e485ad2d9614fdc378fd4e0",
         "auth_type": "atsha",
         "sn": "0000000A000001F3"
@@ -280,35 +280,35 @@ good_reqs_auth = [
         "sn": "0000000A000001F3",
         "type": "auth",
         "sid": "4cca5561cf766855a02ee33f229acf4b144fdb7988abd85fd2bad3cfe2546d9f",
-        "digest": "D9C57EF288673CBC6EBAF6990991C58294521AA46E4FF5A2F49D3326F53E10C0"
+        "signature": "D9C57EF288673CBC6EBAF6990991C58294521AA46E4FF5A2F49D3326F53E10C0"
     },
     {  # bad sn
         "auth_type": "atsha",
         "sn": "0000000A000001F4",
         "type": "auth",
         "sid": "4cca5561cf766855a02ee33f229acf4b144fdb7988abd85fd2bad3cfe2546d9f",
-        "digest": "D9C57EF288673CBC6EBAF6990991C58294521AA46E4FF5A2F49D3326F53E10C0"
+        "signature": "D9C57EF288673CBC6EBAF6990991C58294521AA46E4FF5A2F49D3326F53E10C0"
     },
     {  # bad type
         "auth_type": "atsha",
         "sn": "0000000A000001F3",
         "type": "authenticate",
         "sid": "4cca5561cf766855a02ee33f229acf4b144fdb7988abd85fd2bad3cfe2546d9f",
-        "digest": "D9C57EF288673CBC6EBAF6990991C58294521AA46E4FF5A2F49D3326F53E10C0"
+        "signature": "D9C57EF288673CBC6EBAF6990991C58294521AA46E4FF5A2F49D3326F53E10C0"
     },
     {  # bad sid (short)
         "auth_type": "atsha",
         "sn": "0000000A000001F3",
         "type": "auth",
         "sid": "4cca5561cf766855a02ee33f229acf4b144fdb7988abd85fd2bad3cfe2546d",
-        "digest": "D9C57EF288673CBC6EBAF6990991C58294521AA46E4FF5A2F49D3326F53E10C0"
+        "signature": "D9C57EF288673CBC6EBAF6990991C58294521AA46E4FF5A2F49D3326F53E10C0"
     },
-    {  # bad digest (non hexa character)
+    {  # bad signature (non hexa character)
         "auth_type": "atsha",
         "sn": "0000000A000001F3",
         "type": "auth",
         "sid": "4cca5561cf766855a02ee33f229acf4b144fdb7988abd85fd2bad3cfe2546d9f",
-        "digest": "X9C57EF288673CBC6EBAF6990991C58294521AA46E4FF5A2F49D3326F53E10C0"
+        "signature": "X9C57EF288673CBC6EBAF6990991C58294521AA46E4FF5A2F49D3326F53E10C0"
     },
 ])
 def bad_req_auth(request):
@@ -326,12 +326,12 @@ good_sessions = [
         "wup0tMMeQM/xrHgBYylaTT6ngfGZQpsrmpBAIhAIhxE9+bzUoBDYFRTFHq4lzD/mzCb3s\n"
         "/lFwJy694PqA0-----END CERTIFICATE REQUEST-----",
         "flags": [],
-        "digest": "",
+        "signature": "",
         "action": "certs",
     },
     {
         "flags": [],
-        "digest": "",
+        "signature": "",
         "nonce": "edd22df680f82d1ed1264a93b4f81ddd735aba22b8a99989b087abb2ea4ca3f0",
         "auth_type": "atsha",
         "csr_str": "-----BEGIN CERTIFICATE REQUEST-----MIHmMIGOAgEAMBsxGTAXBgN\n"
@@ -349,7 +349,7 @@ good_sessions = [
     "x",
     # "", # TODO: improve cert-api to this could be added to tests
     {  # missing flags
-        "digest": "",
+        "signature": "",
         "nonce": "edd22df680f82d1ed1264a93b4f81ddd735aba22b8a99989b087abb2ea4ca3f0",
         "auth_type": "atsha",
         "csr_str": "-----BEGIN CERTIFICATE REQUEST-----MIHmMIGOAgEAMBsxGTAXBgN\n"
@@ -361,14 +361,14 @@ good_sessions = [
     },
     {  # missing csr
         "flags": [],
-        "digest": "",
+        "signature": "",
         "nonce": "edd22df680f82d1ed1264a93b4f81ddd735aba22b8a99989b087abb2ea4ca3f0",
         "auth_type": "atsha",
     },
 
     # {  # invalid nonce  TODO: improve cert-api to this could be added to tests
     #     "flags": [],
-    #     "digest": "",
+    #     "signature": "",
     #     "nonce": "XXd22df680f82d1ed1264a93b4f81ddd735aba22b8a99989b087abb2ea4ca3f0",
     #     "auth_type": "atsha",
     #     "csr_str": "-----BEGIN CERTIFICATE REQUEST-----MIHmMIGOAgEAMBsxGTAXBgN\n"

@@ -137,7 +137,7 @@ def bad_sid(request):
     {
         "auth_type": "",
         "nonce": "",
-        "digest": "",
+        "signature": "",
         "csr_str": "",
         "flags": "",
         "action": "certs",
@@ -145,7 +145,7 @@ def bad_sid(request):
     {
         "auth_type": "",
         "nonce": "",
-        "digest": "",
+        "signature": "",
         "flags": "",
         "action": "mailpass",
     }
@@ -158,21 +158,21 @@ def good_sessions(request):
     {
         "auth_type",
         "nonce",
-        "digest",
+        "signature",
         "csr_str",
         "",
     },
     {
         "auth_type",
         "nonce",
-        "digest",
+        "signature",
         "csr_str",
         "flagss",
     },
     {
         "auth_type",
         "nonce",
-        "digest",
+        "signature",
         "csr_str",
     },
     {}

@@ -1,4 +1,4 @@
-from certapi.validators import validate_digest, validate_sid, DIGEST_LEN
+from certapi.validators import validate_signature, validate_sid, SIGNATURE_LENGTH
 
 
 def test_good_renew(client, good_req_get_cert_renew, redis_mock):
@@ -10,7 +10,7 @@ def test_good_renew(client, good_req_get_cert_renew, redis_mock):
     assert rv.status_code == 200
     resp_data = rv.get_json()
     assert resp_data["status"] == "authenticate"
-    validate_digest(resp_data["nonce"], DIGEST_LEN[good_req_get_cert_renew["auth_type"]])
+    validate_signature(resp_data["nonce"], SIGNATURE_LENGTH[good_req_get_cert_renew["auth_type"]])
     validate_sid(resp_data["sid"])
 
 
@@ -27,7 +27,7 @@ def good_sid_useless_cert_missing(client, good_data, redis_mock):
     assert rv.status_code == 200
     resp_data = rv.get_json()
     assert resp_data["status"] == "authenticate"
-    validate_digest(resp_data["nonce"], DIGEST_LEN[good_data[0]["auth_type"]])
+    validate_signature(resp_data["nonce"], SIGNATURE_LENGTH[good_data[0]["auth_type"]])
     validate_sid(resp_data["sid"])
 
 
@@ -117,7 +117,7 @@ def test_good_sid_set_auth_ok_cert_missing(client, good_data, redis_mock):
     assert rv.status_code == 200
     resp_data = rv.get_json()
     assert resp_data["status"] == "authenticate"
-    validate_digest(resp_data["nonce"], DIGEST_LEN[good_data[0]["auth_type"]])
+    validate_signature(resp_data["nonce"], SIGNATURE_LENGTH[good_data[0]["auth_type"]])
     validate_sid(resp_data["sid"])
 
 
