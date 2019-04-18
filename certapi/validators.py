@@ -39,7 +39,7 @@ GET_REQ_PARAMS = {
 }
 # Params of request send by clients, get - cert
 GET_CERT_REQ_PARAMS = {
-    "csr",
+    "csr_str",
 }
 # Params of request send by clients, auth
 AUTH_REQ_PARAMS = {
@@ -95,8 +95,8 @@ def validate_csr_signature(csr):
         raise RequestConsistencyError("Request signature is not valid")
 
 
-def validate_csr(csr, sn):
-    csr = csr_from_str(csr)
+def validate_csr(csr_str, sn):
+    csr = csr_from_str(csr_str)
     validate_csr_common_name(csr, sn)
     validate_csr_hash(csr)
     validate_csr_signature(csr)
@@ -172,7 +172,7 @@ def check_request(req, action):
         check_params_exist(req, GET_REQ_PARAMS)
         if action == "certs":
             check_params_exist(req, GET_CERT_REQ_PARAMS)
-            validate_csr(req["csr"], req["sn"])
+            validate_csr(req["csr_str"], req["sn"])
             validate_certs_flags(req["flags"])
 
             if "renew" in req["flags"] and req["sid"]:

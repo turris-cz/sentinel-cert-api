@@ -26,7 +26,7 @@ def redis_mock():
     {
         "sn": "0000000A000001F3",
         "type": "get",
-        "csr": "-----BEGIN CERTIFICATE REQUEST-----\n"
+        "csr_str": "-----BEGIN CERTIFICATE REQUEST-----\n"
         "MIHoMIGOAgEAMBsxGTAXBgNVBAMMEDAwMDAwMDBBMDAwMDAxRjMwWTATBgcqhkjO\n"
         "PQIBBggqhkjOPQMBBwNCAATZidHnuSVUH647KgxFnvgP74OTAdKdkSgVZEfyoAXy\n"
         "d8iEFj3BYAWXicyX6WEsA0mUn391NO0Z6Tu4PwYLclOUoBEwDwYJKoZIhvcNAQkO\n"
@@ -49,7 +49,7 @@ good_reqs_get_cert = [
         "flags": [],
         "sid": "4cca5561cf766855a02ee33f229acf4b144fdb7988abd85fd2bad3cfe2546d9f",
         "type": "get",
-        "csr": "-----BEGIN CERTIFICATE REQUEST-----\n"
+        "csr_str": "-----BEGIN CERTIFICATE REQUEST-----\n"
         "MIHnMIGOAgEAMBsxGTAXBgNVBAMMEDAwMDAwMDBBMDAwMDAxRjMwWTATBgcqhkjO\n"
         "PQIBBggqhkjOPQMBBwNCAASCLeKIXMOsIdxYndnySeHcwv+EvJvp6RiXPd2gY/pz\n"
         "kfNBVFzudGJ8tKWo4JPG1U66Crh5GgqaxGoWUPBdw8+BoBEwDwYJKoZIhvcNAQkO\n"
@@ -62,7 +62,7 @@ good_reqs_get_cert = [
         "auth_type": "atsha204",
         "sid": "aea13dbed3b576cc8300d4710bdc708e6baff00f2e485ad2d9614fdc378fd4e0",
         "flags": [],
-        "csr": "-----BEGIN CERTIFICATE REQUEST-----\n"
+        "csr_str": "-----BEGIN CERTIFICATE REQUEST-----\n"
         "MIHmMIGOAgEAMBsxGTAXBgNVBAMMEDAwMDAwMDBBMDAwMDAxRjMwWTATBgcqhkjO\n"
         "PQIBBggqhkjOPQMBBwNCAAQGpZBcM/iDdl4+m+fW3NnIOf3epwWZjJQqQY8R0b6+\n"
         "cm9eSHpqIlI6zjUCzBD1jC1BsewZ25Dy7nQMGOmvwrTYoBEwDwYJKoZIhvcNAQkO\n"
@@ -78,7 +78,7 @@ good_reqs_get_cert = [
     {  # bad sn
         "sn": "0000000A000001F4",
         "type": "get",
-        "csr": "-----BEGIN CERTIFICATE REQUEST-----\n"
+        "csr_str": "-----BEGIN CERTIFICATE REQUEST-----\n"
         "MIHoMIGOAgEAMBsxGTAXBgNVBAMMEDAwMDAwMDBBMDAwMDAxRjMwWTATBgcqhkjO\n"
         "PQIBBggqhkjOPQMBBwNCAATZidHnuSVUH647KgxFnvgP74OTAdKdkSgVZEfyoAXy\n"
         "d8iEFj3BYAWXicyX6WEsA0mUn391NO0Z6Tu4PwYLclOUoBEwDwYJKoZIhvcNAQkO\n"
@@ -92,7 +92,7 @@ good_reqs_get_cert = [
     {  # bad sid
         "sn": "0000000A000001F3",
         "type": "get",
-        "csr": "-----BEGIN CERTIFICATE REQUEST-----\n"
+        "csr_str": "-----BEGIN CERTIFICATE REQUEST-----\n"
         "MIHoMIGOAgEAMBsxGTAXBgNVBAMMEDAwMDAwMDBBMDAwMDAxRjMwWTATBgcqhkjO\n"
         "PQIBBggqhkjOPQMBBwNCAATZidHnuSVUH647KgxFnvgP74OTAdKdkSgVZEfyoAXy\n"
         "d8iEFj3BYAWXicyX6WEsA0mUn391NO0Z6Tu4PwYLclOUoBEwDwYJKoZIhvcNAQkO\n"
@@ -106,7 +106,7 @@ good_reqs_get_cert = [
     {  # bad auth_type
         "sn": "0000000A000001F3",
         "type": "get",
-        "csr": "-----BEGIN CERTIFICATE REQUEST-----\n"
+        "csr_str": "-----BEGIN CERTIFICATE REQUEST-----\n"
         "MIHoMIGOAgEAMBsxGTAXBgNVBAMMEDAwMDAwMDBBMDAwMDAxRjMwWTATBgcqhkjO\n"
         "PQIBBggqhkjOPQMBBwNCAATZidHnuSVUH647KgxFnvgP74OTAdKdkSgVZEfyoAXy\n"
         "d8iEFj3BYAWXicyX6WEsA0mUn391NO0Z6Tu4PwYLclOUoBEwDwYJKoZIhvcNAQkO\n"
@@ -120,7 +120,7 @@ good_reqs_get_cert = [
     {  # bad req type
         "sn": "0000000A000001F3",
         "type": "gett",
-        "csr": "-----BEGIN CERTIFICATE REQUEST-----\n"
+        "csr_str": "-----BEGIN CERTIFICATE REQUEST-----\n"
         "MIHoMIGOAgEAMBsxGTAXBgNVBAMMEDAwMDAwMDBBMDAwMDAxRjMwWTATBgcqhkjO\n"
         "PQIBBggqhkjOPQMBBwNCAATZidHnuSVUH647KgxFnvgP74OTAdKdkSgVZEfyoAXy\n"
         "d8iEFj3BYAWXicyX6WEsA0mUn391NO0Z6Tu4PwYLclOUoBEwDwYJKoZIhvcNAQkO\n"
@@ -134,7 +134,7 @@ good_reqs_get_cert = [
     {  # bad csr
         "sn": "0000000A000001F3",
         "type": "get",
-        "csr": "-----BEGIN CERTIFICATE REQUEST-----\n"
+        "csr_str": "-----BEGIN CERTIFICATE REQUEST-----\n"
         "MIHoMIGOAgEAMBsxGTAXBgNMMEDAwMDAwMDBBMDAwMDAxRjMwWTATBgcqhkjO\n"
         "PQIBBggqhkjOPQMBBwNCAATZidnuSVUH647KgxFnvgP74OTAdKdkSgVZEfyoAXy\n"
         "d8iEFj3BYAWXicyX6WEsA0m91NO0Z6Tu4PwYLclOUoBEwDwYJKoZIhvcNAQkO\n"
@@ -148,7 +148,7 @@ good_reqs_get_cert = [
     {  # bad flags
         "sn": "0000000A000001F3",
         "type": "get",
-        "csr": "-----BEGIN CERTIFICATE REQUEST-----\n"
+        "csr_str": "-----BEGIN CERTIFICATE REQUEST-----\n"
         "MIHoMIGOAgEAMBsxGTAXBgNVBAMMEDAwMDAwMDBBMDAwMDAxRjMwWTATBgcqhkjO\n"
         "PQIBBggqhkjOPQMBBwNCAATZidHnuSVUH647KgxFnvgP74OTAdKdkSgVZEfyoAXy\n"
         "d8iEFj3BYAWXicyX6WEsA0mUn391NO0Z6Tu4PwYLclOUoBEwDwYJKoZIhvcNAQkO\n"

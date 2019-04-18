@@ -297,7 +297,6 @@ def process_request(req, r, action):
 
         if req["type"] == "get":
             if action == "certs":
-                req["csr_str"] = req["csr"]  # stupid different naming in req and internals
                 return process_req_get_cert(req, r)
 
             elif action == "mailpass":
