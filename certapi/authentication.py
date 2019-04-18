@@ -44,7 +44,7 @@ def build_reply_auth_accepted(delay=DELAY_AUTH):
         "status": "accepted",
         "delay": delay,
         "message": "Certification process started, wait for {} sec before"
-                   " sending next 'get_cert' request".format(delay),
+                   " sending next 'get' request".format(delay),
     }
 
 
@@ -62,7 +62,7 @@ def build_reply_get_wait(delay=DELAY_GET_SESSION_EXISTS):
         "status": "wait",
         "delay": delay,
         "message": "Certification process still running, wait for"
-                   " {} sec before sending another 'get_cert'"
+                   " {} sec before sending another 'get'"
                    " request".format(delay),
     }
 
@@ -218,7 +218,7 @@ def get_auth_session(sn, sid, r):
     session_json = r.get(get_session_key(sn, sid))
     if not session_json:  # authentication session open / certificate creation in progress
         current_app.logger.debug("Authentication session not found, sn=%s, sid=%s", sn, sid)
-        raise RequestProcessError("Auth session not found. Did you send 'get_cert' request?")
+        raise RequestProcessError("Auth session not found. Did you send 'get' request?")
 
     try:
         session = json.loads(session_json.decode("utf-8"))
@@ -295,7 +295,7 @@ def process_request(req, r, action):
     try:
         check_request(req, action)
 
-        if req["type"] == "get_cert" or req["type"] == "get":
+        if req["type"] == "get":
             if action == "certs":
                 req["csr_str"] = req["csr"]  # stupid different naming in req and internals
                 return process_req_get_cert(req, r)

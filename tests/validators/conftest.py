@@ -53,7 +53,7 @@ def good_sn_atsha(request):
 
 
 @pytest.fixture(params=[
-    "get_cert",
+    "get",
     "auth",
 ])
 def good_req_types(request):
@@ -61,7 +61,7 @@ def good_req_types(request):
 
 
 @pytest.fixture(params=[
-    "get_certs",
+    "get_cert",
     "",
     " ",
     None,

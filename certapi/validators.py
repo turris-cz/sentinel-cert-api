@@ -168,7 +168,7 @@ def check_request(req, action):
     validate_sn(req["sn"])
     validate_sid(req["sid"])
 
-    if req["type"] == "get" or req["type"] == "get_cert":
+    if req["type"] == "get":
         check_params_exist(req, GET_REQ_PARAMS)
         if action == "certs":
             check_params_exist(req, GET_CERT_REQ_PARAMS)
