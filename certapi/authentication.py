@@ -20,7 +20,7 @@ from flask import current_app, request
 from .crypto import create_random_sid, create_random_nonce, key_match
 from .exceptions import RequestConsistencyError, RequestProcessError, CertAPISystemError, \
                         InvalidRedisDataError
-from .rlimit import check_rate_limit
+from .rlimit import check_rate_limit, rlimit_enabled
 from .validators import check_request, validate_auth_state, check_session
 
 DELAY_GET_SESSION_EXISTS = 10
@@ -295,7 +295,9 @@ def process_req_auth(req, action, r):
 def process_request(req, r, action):
     try:
         check_request(req, action)
-        check_rate_limit(r, request.remote_addr)
+
+        if rlimit_enabled():
+            check_rate_limit(r, request.remote_addr)
 
         if req["type"] == "get":
             if action == "certs":

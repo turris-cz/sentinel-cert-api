@@ -49,3 +49,7 @@ def check_rate_limit(redis, remote_addr):
         if rl.reached_enough_hits():
             rl.set_ban_window()
             rl.deny_access()
+
+
+def rlimit_enabled():
+    return int(current_app.config["RLIMIT_MAX_HITS"]) > 0
