@@ -1,6 +1,26 @@
 from certapi.validators import validate_signature, validate_sid, SIGNATURE_LENGTH
 
 
+def test_rl_good_renew(client_rl, good_req_get_cert_renew, redis_pipe_mock):
+    redis_pipe_mock().get.return_value = None  # RL record not in Redis
+    # First request - Rate Limit OK
+    rv = client_rl.post("/v1", json=good_req_get_cert_renew)
+    assert redis_pipe_mock().get.called  # Look for RL record
+
+    assert rv.status_code == 200
+    resp_data = rv.get_json()
+    assert resp_data["status"] == "authenticate"
+
+    # Third request - Rate Limit Triggered
+    redis_pipe_mock().get.return_value = 2  # RL record not in Redis
+    rv = client_rl.post("/v1", json=good_req_get_cert_renew)
+    assert redis_pipe_mock().get.called  # Look for RL record
+
+    assert rv.status_code == 200
+    resp_data = rv.get_json()
+    assert resp_data["status"] == "fail"
+
+
 def test_good_renew(client, good_req_get_cert_renew, redis_mock):
     rv = client.post("/v1", json=good_req_get_cert_renew)
     assert not redis_mock().exists.called  # Do not look for anything

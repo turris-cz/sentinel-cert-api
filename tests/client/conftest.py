@@ -1,4 +1,3 @@
-import json
 import pytest
 from certapi import create_app
 from unittest.mock import Mock, patch
@@ -10,14 +9,34 @@ def app():
 
 
 @pytest.fixture
+def client_rl(app):
+    with app.test_client() as client:
+        app.config["RLIMIT_WINDOW_TIME"] = 600
+        app.config["RLIMIT_MAX_HITS"] = 1
+        yield client
+
+
+@pytest.fixture
 def client(app):
     with app.test_client() as client:
+        app.config["RLIMIT_MAX_HITS"] = 0
         yield client
 
 
 @pytest.fixture
 def redis_mock():
     redis_inst_mock = Mock()
+    with patch("redis.StrictRedis", return_value=redis_inst_mock) as m:
+        yield m
+
+
+@pytest.fixture
+def redis_pipe_mock():
+    redis_inst_mock = Mock()
+    pipe_mock = Mock()
+    hits_in_redis = 1
+    pipe_mock.execute.return_value = [None, hits_in_redis, None]
+    redis_inst_mock.pipeline.return_value = pipe_mock
     with patch("redis.StrictRedis", return_value=redis_inst_mock) as m:
         yield m
 
