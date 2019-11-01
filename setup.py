@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-from setuptools import setup
+from setuptools import setup, find_packages
 
 
 VERSION = "0.7"
@@ -8,12 +8,12 @@ VERSION = "0.7"
 
 setup(
     name="certapi",
+    version=VERSION,
+    description="Flask application providing HTTP API for Turris:Sentinel authentication backend",
     author="CZ.NIC, z.s.p.o.",
     author_email="packaging@turris.cz",
-    version=VERSION,
-    zip_safe=False,
-    include_package_data=True,
-    packages=["certapi"],
+    url="https://gitlab.labs.nic.cz/turris/sentinel/cert-api",
+    packages=find_packages(exclude=("tests*",)),
     install_requires=[
         "flask",
         "python-dotenv",
@@ -26,5 +26,5 @@ setup(
             "coverage",
             "pytest-cov",
         ],
-    }
+    },
 )
