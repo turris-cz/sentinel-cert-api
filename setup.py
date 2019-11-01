@@ -16,6 +16,7 @@ setup(
     packages=["certapi"],
     install_requires=[
         "flask",
+        "python-dotenv",
         "cryptography",
         "redis",
     ],

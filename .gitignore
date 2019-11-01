@@ -5,7 +5,8 @@
 __pycache__
 *.egg-info/
 
-# Flask main configuration file
+# Flask
+/.env
 /instance/local.cfg
 
 # uwsgi production deployment
