@@ -13,7 +13,9 @@ Note on logging:
     - CertAPISystemError should be logged centrally in one place with levels
       'error' for most cases and 'critical' when the application needs to stop
 """
+
 import json
+import time
 
 from flask import current_app, request
 
@@ -243,9 +245,15 @@ def store_auth_params(sn, sid, session, queue_name, r, extra_params=()):
         Parameters "nonce", "signature", "flags", "auth_type" and extra_params are
         required in the session (the param) dictionary.
     """
+    timestamp = int(time.time())
+
     params = ("nonce", "signature", "flags", "auth_type") + extra_params
     request = {i: session[i] for i in params}
-    request.update({"sn": sn, "sid": sid})
+    request.update({
+        "sn": sn,
+        "ts": timestamp,
+        "sid": sid
+    })
 
     pipe = r.pipeline(transaction=True)
     pipe.delete(get_session_key(sn, sid))
