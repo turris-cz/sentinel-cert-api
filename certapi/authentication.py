@@ -108,7 +108,7 @@ def get_mailpass_key(sn):
 
 def create_auth_session(req, action, r, extra_params=()):
     """ This function is called in case of `certs` when no certificate with
-        matching private key is found in redis or in case of `mailpass` at
+        matching public key is found in redis or in case of `mailpass` at
         the beginning of each session.
 
         Parameters "sn", "flags", "auth_type" and extra_params are required in
