@@ -1,0 +1,5 @@
+## MANIFEST.in
+#
+# python manifest file to include data into package
+
+graft sview/templates
