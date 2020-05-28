@@ -3,3 +3,5 @@
 # python manifest file to include data into package
 
 graft sview/templates
+# static files should be served via webserver on production
+graft sview/static
