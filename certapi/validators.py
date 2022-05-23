@@ -48,7 +48,8 @@ AUTH_REQ_PARAMS = {
 # Length of signature computed by atsha / otp devices
 SIGNATURE_LENGTH = {
     "atsha": 64,
-    "otp": 264
+    "otp": 264,
+    "b2b": 264,
 }
 
 
@@ -67,10 +68,18 @@ def validate_sn_turris(sn):
     if sn_value % 11 != 0:
         raise RequestConsistencyError("SN has invalid format.")
 
+def validate_b2b(sn):
+    """ Check serial number format of our business partners
+    """
+    if len(sn) != 16:
+        raise RequestConsistencyError("SN has invalid length.")
+    if sn[0:3] != "B2B" and sn[0:3] != "b2b":
+        raise RequestConsistencyError("SN has invalid format.")
 
 sn_validators = {
     "atsha": validate_sn_turris,
     "otp": validate_sn_turris,
+    "b2b": validate_b2b,
 }
 
 

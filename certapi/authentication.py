@@ -196,6 +196,10 @@ def process_req_get_mailpass(req, r):
     """
     current_app.logger.debug("Processing mailpass GET request, sn=%s, sid=%s", req["sn"], req["sid"])
 
+    # No mails for B2B
+    if req["sn"][0:3] == "B2B" or req["sn"][0:3] == "b2b":
+        raise RequestProcessError("Business customers can't request mail password")
+
     # Authentication is mandatory here - we do not cache passwords
     if r.exists(get_session_key(req["sn"], req["sid"])):
         try:
