@@ -54,8 +54,8 @@ SIGNATURE_LENGTH = {
 
 
 def validate_sn_turris(sn):
-    """ Check serial number format of Turris 1.x and Turris Omnia devices
-        using atsha and Turris MOX using otp.
+    """Check serial number format of Turris 1.x and Turris Omnia devices
+    using atsha and Turris MOX using otp.
     """
     if len(sn) != 16:
         raise RequestConsistencyError("SN has invalid length.")
@@ -68,18 +68,19 @@ def validate_sn_turris(sn):
     if sn_value % 11 != 0:
         raise RequestConsistencyError("SN has invalid format.")
 
-def validate_b2b(sn):
-    """ Check serial number format of our business partners
-    """
+
+def validate_sn_b2b(sn):
+    """Check serial number format of our business partners"""
     if len(sn) != 16:
         raise RequestConsistencyError("SN has invalid length.")
     if sn[0:3] != "B2B" and sn[0:3] != "b2b":
         raise RequestConsistencyError("SN has invalid format.")
 
+
 sn_validators = {
     "atsha": validate_sn_turris,
     "otp": validate_sn_turris,
-    "b2b": validate_b2b,
+    "b2b": validate_sn_b2b,
 }
 
 
@@ -90,13 +91,17 @@ def validate_csr_common_name(csr, identity):
 
     common_name = common_names[0].value
     if common_name != identity:
-        raise RequestConsistencyError("CSR CommonName ({}) does not match desired identity".format(common_name))
+        raise RequestConsistencyError(
+            "CSR CommonName ({}) does not match desired identity".format(common_name)
+        )
 
 
 def validate_csr_hash(csr):
     h = csr.signature_hash_algorithm.name
     if h not in AVAIL_HASHES:
-        raise RequestConsistencyError("CSR is signed with not allowed hash ({})".format(h))
+        raise RequestConsistencyError(
+            "CSR is signed with not allowed hash ({})".format(h)
+        )
 
 
 def validate_csr_signature(csr):
@@ -120,7 +125,7 @@ def validate_certs_flags(flags):
 def validate_sid(sid):
     if sid == "":
         return
-    if (len(sid) != 64 or not sid.islower()):
+    if len(sid) != 64 or not sid.islower():
         raise RequestConsistencyError("Bad format of sid: {}".format(sid))
     try:
         sid = int(sid, 16)
@@ -145,7 +150,9 @@ def validate_auth_type(auth_type):
 def check_session(session):
     if type(session) is not dict:
         raise InvalidRedisDataError("Must be a dict!")
-    for param in SESSION_PARAMS | ACTION_SPEC_SESSION_PARAMS.get(session.get("action"), set()):
+    for param in SESSION_PARAMS | ACTION_SPEC_SESSION_PARAMS.get(
+        session.get("action"), set()
+    ):
         if param not in session:
             raise InvalidRedisDataError("Parameter {} missing in session".format(param))
     if session["action"] not in ACTION_SPEC_SESSION_PARAMS:
@@ -165,12 +172,16 @@ def validate_auth_state(auth_state):
 def check_params_exist(req, params):
     for param in params:
         if param not in req:
-            raise RequestConsistencyError("'{}' is missing in the request".format(param))
+            raise RequestConsistencyError(
+                "'{}' is missing in the request".format(param)
+            )
 
 
 def check_request(req, action):
     if type(req) is not dict:
-        raise RequestConsistencyError("Request not a valid JSON with correct content type")
+        raise RequestConsistencyError(
+            "Request not a valid JSON with correct content type"
+        )
     check_params_exist(req, GENERAL_REQ_PARAMS)
     validate_auth_type(req["auth_type"])
     validate_sn = sn_validators[req["auth_type"]]

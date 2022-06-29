@@ -14,6 +14,10 @@ def test_invalid_sn_atsha(bad_sn_atsha):
         v.validate_sn_turris(bad_sn_atsha)
 
 
+def test_valid_sn_b2b(good_sn_b2b):
+    v.validate_sn_b2b(good_sn_b2b)
+
+
 def test_valid_csr_common_name(valid_csr_sn_sets):
     csr = c.csr_from_str(valid_csr_sn_sets[0])
     v.validate_csr_common_name(csr, valid_csr_sn_sets[1])
@@ -63,6 +67,11 @@ def test_valid_sn(good_sid):
 def test_invalid_sn(bad_sid):
     with pytest.raises(ex.RequestConsistencyError):
         v.validate_sid(bad_sid)
+
+
+def test_invalid_b2b_sn(wrong_sn_b2b):
+    with pytest.raises(ex.RequestConsistencyError):
+        v.validate_sn_b2b(wrong_sn_b2b)
 
 
 def test_valid_session(good_sessions):
