@@ -19,6 +19,7 @@ def _get_redis_instance(config_namespace):
     config = current_app.config.get_namespace(config_namespace)
     r = redis.StrictRedis(host=config.get("host"),
                           port=config.get("port"),
+                          username=config.get("username"),
                           password=config.get("password"))
     return r
 

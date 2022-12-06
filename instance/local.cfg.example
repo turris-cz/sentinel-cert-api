@@ -4,8 +4,10 @@
 
 # Sentinel:CA Redis database
 REDIS_CERTS_HOST = "redis.example.org"
+REDIS_CERTS_USERNAME = "ca"
 REDIS_CERTS_PASSWORD = "foobared"
 
 # Sentinel:Mailpass database
 REDIS_MAILPASS_HOST = "redis.priklad.cz"
+REDIS_MAILPASS_USERNAME = "mailpass"
 REDIS_MAILPASS_PASSWORD = "tajneheslo"
